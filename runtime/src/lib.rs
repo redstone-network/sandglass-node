@@ -45,8 +45,8 @@ use pallet_transaction_payment::{ConstFeeMultiplier, CurrencyAdapter, Multiplier
 pub use sp_runtime::BuildStorage;
 pub use sp_runtime::{Perbill, Permill};
 
-/// Import the template pallet.
-pub use pallet_template;
+/// Import the mixer pallet.
+pub use pallet_mixer;
 
 /// An index to a block.
 pub type BlockNumber = u32;
