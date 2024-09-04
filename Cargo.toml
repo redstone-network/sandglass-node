@@ -1,0 +1,10 @@
+[workspace]
+members = [
+    'node',
+    'pallets/mixer',
+    # 'pallets/data-type',
+    # 'pallets/genesis-config',
+    'runtime',
+]
+[profile.release]
+panic = 'unwind'
