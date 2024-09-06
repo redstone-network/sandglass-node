@@ -41,6 +41,7 @@
 
 // Re-export pallet items so that they can be accessed from the crate namespace.
 pub use pallet::*;
+use sp_core::{U256,};
 
 // FRAME pallets require their own "mock runtimes" to be able to run unit tests. This module
 // contains a mock runtime specific for testing this pallet's functionality.
@@ -92,6 +93,35 @@ pub mod pallet {
 	/// `u32` value. Learn more about runtime storage here: <https://docs.substrate.io/build/runtime-storage/>
 	#[pallet::storage]
 	pub type Something<T> = StorageValue<_, u32>;
+
+
+	#[pallet::storage]
+	#[pallet::getter(fn roots)]
+	pub type Roots<T: Config> = StorageMap<
+		_,
+		Blake2_128Concat,
+		U256,
+		bool,
+	>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn nullifier_hashes)]
+	pub type NullifierHashes<T: Config> = StorageMap<
+		_,
+		Blake2_128Concat,
+		U256,
+		bool,
+	>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn commitments)]
+	pub type Commitments<T: Config> = StorageMap<
+		_,
+		Blake2_128Concat,
+		U256,
+		bool,
+	>;
+
 
 	/// Events that functions in this pallet can emit.
 	///
@@ -197,6 +227,33 @@ pub mod pallet {
 					Ok(())
 				},
 			}
+		}
+
+		#[pallet::call_index(2)]
+		#[pallet::weight(0)]
+		pub fn setup_verification(
+			_origin: OriginFor<T>,
+			pub_input: Vec<u8>,
+			vec_vk: Vec<u8>,
+		) -> DispatchResult {
+			Ok(())
+		}
+
+		#[pallet::call_index(3)]
+		#[pallet::weight(0)]
+		pub fn deposit(origin: OriginFor<T>, commitment: Vec<u8>) -> DispatchResult {
+			// Check that the extrinsic was signed and get the signer.
+			let _who = ensure_signed(origin)?;
+			Ok(())
+		}
+
+		#[pallet::call_index(4)]
+		#[pallet::weight(0)]
+		pub fn withdraw(origin: OriginFor<T>, proof: Vec<u8>) -> DispatchResult {
+			// Check that the extrinsic was signed and get the signer.
+			let _who = ensure_signed(origin)?;
+
+			Ok(())
 		}
 	}
 }
