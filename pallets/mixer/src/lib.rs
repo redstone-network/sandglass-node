@@ -41,7 +41,7 @@
 
 // Re-export pallet items so that they can be accessed from the crate namespace.
 pub use pallet::*;
-use sp_core::{U256,};
+use sp_core::U256;
 
 // FRAME pallets require their own "mock runtimes" to be able to run unit tests. This module
 // contains a mock runtime specific for testing this pallet's functionality.
@@ -72,7 +72,6 @@ use sp_std::vec::Vec;
 type PublicInputsDef<T> = BoundedVec<u8, <T as Config>::MaxPublicInputsLength>;
 type ProofDef<T> = BoundedVec<u8, <T as Config>::MaxProofLength>;
 type VerificationKeyDef<T> = BoundedVec<u8, <T as Config>::MaxVerificationKeyLength>;
-
 
 // All pallet logic is defined in its own module and must be annotated by the `pallet` attribute.
 #[frame_support::pallet]
@@ -109,7 +108,6 @@ pub mod pallet {
 		/// A type representing the weights required by the dispatchables of this pallet.
 		type WeightInfo: WeightInfo;
 
-
 		#[pallet::constant]
 		type MaxPublicInputsLength: Get<u32>;
 
@@ -129,42 +127,29 @@ pub mod pallet {
 	#[pallet::storage]
 	pub type Something<T> = StorageValue<_, u32>;
 
-
 	#[pallet::storage]
 	#[pallet::getter(fn roots)]
-	pub type Roots<T: Config> = StorageMap<
-		_,
-		Blake2_128Concat,
-		U256,
-		bool,
-	>;
+	pub type Roots<T: Config> = StorageMap<_, Blake2_128Concat, U256, bool>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn nullifier_hashes)]
-	pub type NullifierHashes<T: Config> = StorageMap<
-		_,
-		Blake2_128Concat,
-		U256,
-		bool,
-	>;
+	pub type NullifierHashes<T: Config> = StorageMap<_, Blake2_128Concat, U256, bool>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn commitments)]
-	pub type Commitments<T: Config> = StorageMap<
-		_,
-		Blake2_128Concat,
-		U256,
-		bool,
-	>;
+	pub type Commitments<T: Config> = StorageMap<_, Blake2_128Concat, U256, bool>;
 
-		/// Storing a public input.
-		#[pallet::storage]
-		pub type PublicInputStorage<T: Config> = StorageValue<_, PublicInputsDef<T>, ValueQuery>;
-	
-		/// Storing a verification key.
-		#[pallet::storage]
-		pub type VerificationKeyStorage<T: Config> = StorageValue<_, VerificationKeyDef<T>, ValueQuery>;
-	
+	#[pallet::storage]
+	#[pallet::getter(fn merkle_vec)]
+	pub type MerkleVec<T> = StorageValue<_, BoundedVec<U256, ConstU32<{ u32::MAX }>>, ValueQuery>;
+
+	/// Storing a public input.
+	#[pallet::storage]
+	pub type PublicInputStorage<T: Config> = StorageValue<_, PublicInputsDef<T>, ValueQuery>;
+
+	/// Storing a verification key.
+	#[pallet::storage]
+	pub type VerificationKeyStorage<T: Config> = StorageValue<_, VerificationKeyDef<T>, ValueQuery>;
 
 	/// Events that functions in this pallet can emit.
 	///
@@ -231,6 +216,16 @@ pub mod pallet {
 		ProofCreationError,
 		/// Verification Key creation error
 		VerificationKeyCreationError,
+		/// Max merkle len
+		MaxMerkleLen,
+		/// Commitment has been submitted
+		CommitmentHasBeanSubmitted,
+		/// The note has been already spent
+		NoteHasBeanSpent,
+		/// Can not find merkel root
+		CanNotFindMerkelRoot,
+		/// Invalid withdraw proof
+		InvalidWithdrawProof,
 	}
 
 	/// The pallet's dispatchable functions ([`Call`]s).
@@ -320,14 +315,64 @@ pub mod pallet {
 		pub fn deposit(origin: OriginFor<T>, commitment: Vec<u8>) -> DispatchResult {
 			// Check that the extrinsic was signed and get the signer.
 			let _who = ensure_signed(origin)?;
+
+			let c = U256::from_little_endian(&commitment);
+
+			ensure!(!Commitments::<T>::contains_key(c), Error::<T>::CommitmentHasBeanSubmitted);
+
+			let merkle_vec: BoundedVec<U256, ConstU32<{ u32::MAX }>> = MerkleVec::<T>::get()
+				.clone()
+				.to_vec()
+				.try_into()
+				.map_err(|_| Error::<T>::MaxMerkleLen)?;
+
+			Commitments::<T>::insert(c, true);
+			//merkle_vec.push(c); //todo
+			//roots[getRoot()] = true; //todo
+
 			Ok(())
 		}
 
 		#[pallet::call_index(4)]
 		#[pallet::weight(0)]
-		pub fn withdraw(origin: OriginFor<T>, proof: Vec<u8>) -> DispatchResult {
+		pub fn withdraw(
+			origin: OriginFor<T>,
+			proof: Vec<u8>,
+			root: Vec<u8>,
+			nullifier_hash: Vec<u8>,
+			receiver: T::AccountId,
+		) -> DispatchResult {
 			// Check that the extrinsic was signed and get the signer.
-			let _who = ensure_signed(origin)?;
+
+			let nullifier_hash = U256::from_little_endian(&nullifier_hash);
+			ensure!(
+				!NullifierHashes::<T>::contains_key(nullifier_hash),
+				Error::<T>::NoteHasBeanSpent
+			);
+
+			let root = U256::from_little_endian(&root);
+			ensure!(Roots::<T>::contains_key(root), Error::<T>::NoteHasBeanSpent);
+
+			let proof = parse_proof::<T>(proof)?;
+			let vk = get_verification_key::<T>()?;
+			let inputs = get_public_inputs::<T>()?;
+			let sender = ensure_signed(origin)?;
+
+			let _ = match verify(vk, proof, prepare_public_inputs(inputs)) {
+				Ok(true) => {
+					//Self::deposit_event(Event::<T>::VerificationSuccess { who: sender });
+					NullifierHashes::<T>::insert(nullifier_hash, true);
+					// todo transfer token to receiver
+					//Ok(())
+				},
+				Ok(false) => {
+					//Self::deposit_event(Event::<T>::VerificationFailed);
+					//Ok(())
+				},
+				Err(_) => {
+					//Err(Error::<T>::ProofVerificationError.into())
+				},
+			};
 
 			Ok(())
 		}
@@ -377,5 +422,33 @@ pub mod pallet {
 
 		VerificationKeyStorage::<T>::put(vk);
 		Ok(deserialized_vk)
+	}
+
+	fn parse_proof<T: Config>(vec_proof: Vec<u8>) -> Result<GProof, sp_runtime::DispatchError> {
+		let proof: ProofDef<T> = vec_proof.try_into().map_err(|_| Error::<T>::TooLongProof)?;
+		let deserialized_proof =
+			Proof::from_json_u8_slice(proof.as_slice()).map_err(|_| Error::<T>::MalformedProof)?;
+		ensure!(
+			deserialized_proof.curve == SUPPORTED_CURVE.as_bytes(),
+			Error::<T>::NotSupportedCurve
+		);
+		ensure!(
+			deserialized_proof.protocol == SUPPORTED_PROTOCOL.as_bytes(),
+			Error::<T>::NotSupportedProtocol
+		);
+
+		let proof = GProof::from_uncompressed(
+			&G1UncompressedBytes::new(deserialized_proof.a[0], deserialized_proof.a[1]),
+			&G2UncompressedBytes::new(
+				deserialized_proof.b[0][0],
+				deserialized_proof.b[0][1],
+				deserialized_proof.b[1][0],
+				deserialized_proof.b[1][1],
+			),
+			&G1UncompressedBytes::new(deserialized_proof.c[0], deserialized_proof.c[1]),
+		)
+		.map_err(|_| Error::<T>::ProofCreationError)?;
+
+		Ok(proof)
 	}
 }
