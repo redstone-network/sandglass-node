@@ -253,6 +253,9 @@ impl pallet_sudo::Config for Runtime {
 impl pallet_mixer::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = pallet_mixer::weights::SubstrateWeight<Runtime>;
+	type MaxPublicInputsLength = ConstU32<9>;
+	type MaxProofLength = ConstU32<1115>;
+	type MaxVerificationKeyLength = ConstU32<4079>;
 }
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
