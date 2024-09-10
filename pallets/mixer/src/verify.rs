@@ -223,9 +223,12 @@ pub fn verify(vk: VerificationKey, proof: GProof, inputs: PublicInputs) -> Verif
 
 #[cfg(test)]
 mod tests {
-	use crate::verify::{
-		verify, G1UncompressedBytes, G2UncompressedBytes, GProof, VerificationError,
-		VerificationKey,
+	use crate::{
+		deserialization::U256,
+		verify::{
+			verify, G1UncompressedBytes, G2UncompressedBytes, GProof, VerificationError,
+			VerificationKey,
+		},
 	};
 	use bls12_381::{G1Affine, G2Affine};
 
@@ -267,9 +270,9 @@ mod tests {
 	const PI_C_X: &str = "1754096103716358561952826128249523421393931227029702817784288419733418512708632119712049074095306383315056978720954";
 	const PI_C_Y: &str = "2834250288052560472935431224341595955480629006732618887386362957441961005785403404522081920080207211610068590548972";
 
-	construct_uint! {
-		pub struct U256(6);
-	}
+	// construct_uint! {
+	// 	pub struct U256(6);
+	// }
 
 	#[test]
 	fn verification_key_from_correct_coordinates_is_ok() {

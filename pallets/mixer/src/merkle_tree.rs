@@ -1,10 +1,10 @@
-use sp_std::vec::Vec;
 use core::mem::size_of;
+use sp_std::vec::Vec;
 
+use num_bigint::{BigInt, Sign};
 use once_cell::sync::Lazy;
 use tiny_keccak::{Hasher, Keccak};
 use zkp_u256::{Zero, U256};
-use num_bigint::{BigInt, Sign};
 
 use mimc_rs::Mimc7;
 
@@ -93,23 +93,21 @@ impl MerkleTree {
 	}
 
 	fn insert(&mut self, message: &[u8]) -> Result<(U256, usize), &'static str> {
-        let mimc7 = Mimc7::new();
+		let mimc7 = Mimc7::new();
 		let l = mimc7.hash_bytes(message.to_vec());
 
-		let leaf =  match mimc7.hash_bytes(message.to_vec()) {
-			Ok (l)=> {
+		let leaf = match mimc7.hash_bytes(message.to_vec()) {
+			Ok(l) => {
 				let mut temp = [0u8; 32];
 				for (i, x) in l.to_bytes_be().1.iter().enumerate() {
 					temp[i] = *x;
 				}
 				U256::from_bytes_be(&temp)
-			}
+			},
 			Err(e) => {
 				return Err("hash message fail");
-			}
+			},
 		};
-
-        //let leaf = mimc(message);
 
 		if leaf.is_zero() {
 			return Err("leaf must be non-zero");
@@ -226,21 +224,18 @@ impl MerkleTree {
 	// Use two leaves to generate mimc hash
 	fn hash_impl(left: &U256, right: &U256, iv: &U256) -> U256 {
 		let left_new = BigInt::from_bytes_be(Sign::Plus, &left.to_bytes_be());
-		let right_new = BigInt::from_bytes_be(Sign::Plus, &right.to_bytes_be());;
+		let right_new = BigInt::from_bytes_be(Sign::Plus, &right.to_bytes_be());
 		let input = vec![left_new, right_new];
-        let mimc7 = Mimc7::new();
+		let mimc7 = Mimc7::new();
 		let rt = match mimc7.hash(input) {
-
-			Ok (l)=> {
+			Ok(l) => {
 				let mut temp = [0u8; 32];
 				for (i, x) in l.to_bytes_be().1.iter().enumerate() {
 					temp[i] = *x;
 				}
 				U256::from_bytes_be(&temp)
-			}
-			Err(e) => {
-				return U256::zero()
-			}
+			},
+			Err(e) => return U256::zero(),
 		};
 
 		rt
