@@ -25,12 +25,9 @@ template Withdraw(k){
 
     for (var w = 0; w < k; w++){
         computed_root.paths2_root[w] <== paths2_root[w];
-				log("@@@ computed_root.paths2_root[w]", computed_root.paths2_root[w], paths2_root[w]);
 
         computed_root.paths2_root_pos[w] <== paths2_root_pos[w];
-				log("@@@ computed_root.paths2_root_pos[w]", computed_root.paths2_root_pos[w], paths2_root_pos[w]);
     }
-		log("@@@ root === computed_root.out", root, computed_root.out);
     root === computed_root.out;
 
 	// nullifier constrain
@@ -43,9 +40,8 @@ template Withdraw(k){
 	nullifier.x_in <== cmt_index.out;
 	nullifier.k <== secret;
 
-  log("@@@ nullifierHash === nullifier.out;", nullifierHash, nullifier.out);
 	nullifierHash === nullifier.out;
 	
 }
 
-component main = Withdraw(8);
+component main {public [root,nullifierHash]} = Withdraw(8);
