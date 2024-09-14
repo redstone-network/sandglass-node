@@ -63,6 +63,7 @@ pub use weights::*;
 
 pub mod common;
 pub mod deserialization;
+pub mod merkle_tree;
 pub mod verify;
 
 use frame_support::storage::bounded_vec::BoundedVec;
@@ -81,6 +82,7 @@ pub mod pallet {
 	use crate::{
 		common::prepare_verification_key,
 		deserialization::{deserialize_public_inputs, Proof, VKey},
+		merkle_tree::MerkleTree,
 		verify::{
 			prepare_public_inputs, verify, G1UncompressedBytes, G2UncompressedBytes, GProof,
 			VerificationKey, SUPPORTED_CURVE, SUPPORTED_PROTOCOL,
@@ -320,15 +322,20 @@ pub mod pallet {
 
 			ensure!(!Commitments::<T>::contains_key(c), Error::<T>::CommitmentHasBeanSubmitted);
 
-			let merkle_vec: BoundedVec<U256, ConstU32<{ u32::MAX }>> = MerkleVec::<T>::get()
-				.clone()
-				.to_vec()
-				.try_into()
-				.map_err(|_| Error::<T>::MaxMerkleLen)?;
+			MerkleVec::<T>::try_mutate(|merkle_vec| -> DispatchResult {
+				let _ = merkle_vec.try_push(c);
+				Ok(())
+			})?;
+
+			let merkle_vec = MerkleVec::<T>::get();
+			let len = merkle_vec.len();
 
 			Commitments::<T>::insert(c, true);
-			//merkle_vec.push(c); //todo
-			//roots[getRoot()] = true; //todo
+			let mut mt = MerkleTree::default();
+			let (leaf, index) = mt.insert(&commitment).unwrap();
+
+			let root = mt.get_root();
+			Roots::<T>::insert(U256::from_big_endian(&root.to_bytes_be()), true);
 
 			Ok(())
 		}
