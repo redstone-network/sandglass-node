@@ -1,6 +1,7 @@
 [workspace]
 members = [
     'node',
+    'primitives',
     'pallets/mixer',
     # 'pallets/data-type',
     # 'pallets/genesis-config',
