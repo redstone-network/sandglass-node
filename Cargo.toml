@@ -2,10 +2,33 @@
 members = [
     'node',
     'primitives',
+    'pallets/currencies',
     'pallets/mixer',
-    # 'pallets/data-type',
-    # 'pallets/genesis-config',
     'runtime',
 ]
 [profile.release]
 panic = 'unwind'
+
+resolver = "2"
+
+[workspace.dependencies]
+frame-support = { default-features = false, git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-v1.9.0" }
+frame-system = { default-features = false, git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-v1.9.0" }
+sp-arithmetic = { default-features = false, git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-v1.9.0" }
+sp-core = { default-features = false, git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-v1.9.0" }
+sp-io = { default-features = false, git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-v1.9.0" }
+sp-runtime = { default-features = false, git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-v1.9.0" }
+sp-std = { default-features = false, git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-v1.9.0" }
+sp-staking = { default-features = false, git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-v1.9.0" }
+
+
+pallet-elections-phragmen = { default-features = false, git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-v1.9.0" }
+pallet-treasury = { default-features = false, git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-v1.9.0" }
+
+xcm = {package = "staging-xcm", default-features = false, git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-v1.9.0"}
+
+
+log = "0.4.17"
+parity-scale-codec = {  version = "3.0.0", default-features = false, features = ["max-encoded-len"] }
+serde = { version = "1.0", default-features = false, features = ["alloc", "derive"] }
+scale-info = { version = "2.5.0", default-features = false, features = ["derive"] }
