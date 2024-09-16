@@ -29,6 +29,7 @@ group = "0.12.1"
 serde = { version = "1.0.149", default-features = false, features = ["derive", "alloc"] }
 serde_json = { version = "1.0.89", default-features = false, features = ["alloc"]}
 uint = { version = "0.8", default-features = false }
+
 mimc-rs = "0.0.2"
 
 once_cell = "1.7"
@@ -37,7 +38,7 @@ num-bigint = "0.2.2"
 
 
 [dev-dependencies]
-sp-io = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-v1.9.0" }
+sp-io = { default-features = false, git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-v1.9.0" }
 
 [features]
 default = ["std"]
@@ -50,6 +51,7 @@ std = [
 	"sp-core/std",
 	"sp-runtime/std",
 	"sp-std/std",
+	"sp-io/std",
 ]
 runtime-benchmarks = ["frame-benchmarking/runtime-benchmarks"]
 try-runtime = ["frame-support/try-runtime"]
