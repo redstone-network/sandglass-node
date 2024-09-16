@@ -335,7 +335,7 @@ pub mod pallet {
 			let (leaf, index) = mt.insert(&commitment).unwrap();
 
 			let root = mt.get_root();
-			Roots::<T>::insert(U256::from_big_endian(&root.to_bytes_be()), true);
+			Roots::<T>::insert(root, true);
 
 			Ok(())
 		}

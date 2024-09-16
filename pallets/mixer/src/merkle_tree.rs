@@ -4,9 +4,9 @@ use sp_std::vec::Vec;
 use num_bigint::{BigInt, Sign};
 use once_cell::sync::Lazy;
 use tiny_keccak::{Hasher, Keccak};
-use zkp_u256::{Zero, U256};
 
 use mimc_rs::Mimc7;
+use sp_core::U256;
 
 use super::*;
 
@@ -48,7 +48,7 @@ static FILL_LEVEL_IVS: Lazy<Vec<U256>> = Lazy::new(|| {
 		"16562533130736679030886586765487416082772837813468081467237161865787494093536",
 		"6037428193077828806710267464232314380014232668931818917272972397574634037180",
 	];
-	ivs.iter().map(|iv| U256::from_decimal_str(iv).unwrap()).collect::<Vec<_>>()
+	ivs.iter().map(|iv| U256::from_dec_str(iv).unwrap()).collect::<Vec<_>>()
 });
 
 #[derive(Clone, Debug)]
@@ -102,7 +102,7 @@ impl MerkleTree {
 				for (i, x) in l.to_bytes_be().1.iter().enumerate() {
 					temp[i] = *x;
 				}
-				U256::from_bytes_be(&temp)
+				U256::from_big_endian(&temp)
 			},
 			Err(e) => {
 				return Err("hash message fail");
@@ -216,15 +216,19 @@ impl MerkleTree {
 			keccak.update(&input[..]);
 			keccak.finalize(&mut received);
 
-			leaf = U256::from_bytes_be(&received);
+			leaf = U256::from_big_endian(&received);
 		}
 		leaf
 	}
 
 	// Use two leaves to generate mimc hash
 	fn hash_impl(left: &U256, right: &U256, iv: &U256) -> U256 {
-		let left_new = BigInt::from_bytes_be(Sign::Plus, &left.to_bytes_be());
-		let right_new = BigInt::from_bytes_be(Sign::Plus, &right.to_bytes_be());
+		let mut left_arr = [0u8; 32];
+		let mut right_arr = [0u8; 32];
+		left.to_big_endian(&mut left_arr[0..32]);
+		right.to_big_endian(&mut right_arr[0..32]);
+		let left_new = BigInt::from_bytes_be(Sign::Plus, &left_arr);
+		let right_new = BigInt::from_bytes_be(Sign::Plus, &right_arr);
 		let input = vec![left_new, right_new];
 		let mimc7 = Mimc7::new();
 		let rt = match mimc7.hash(input) {
@@ -233,7 +237,7 @@ impl MerkleTree {
 				for (i, x) in l.to_bytes_be().1.iter().enumerate() {
 					temp[i] = *x;
 				}
-				U256::from_bytes_be(&temp)
+				U256::from_big_endian(&temp)
 			},
 			Err(e) => return U256::zero(),
 		};
@@ -253,24 +257,23 @@ impl MerkleTree {
 // 	assert!(mt.verify_merkle_proof(leaf, merkle_proof, index));
 // }
 
-
 #[test]
 fn test_merkle_tree_root_hash() {
 	let mut mt = MerkleTree::default();
 
 	// let (leaf, index) = mt.insert(message).unwrap();
-    // let (leaf, index) = mt.insert(message).unwrap();
-    // let (leaf, index) = mt.insert(message).unwrap();
-    // let (leaf, index) = mt.insert(message).unwrap();
-    // let (leaf, index) = mt.insert(message).unwrap();
-    // let (leaf, index) = mt.insert(message).unwrap();
-    // let (leaf, index) = mt.insert(message).unwrap();
-    // let (leaf, index) = mt.insert(message).unwrap();
+	// let (leaf, index) = mt.insert(message).unwrap();
+	// let (leaf, index) = mt.insert(message).unwrap();
+	// let (leaf, index) = mt.insert(message).unwrap();
+	// let (leaf, index) = mt.insert(message).unwrap();
+	// let (leaf, index) = mt.insert(message).unwrap();
+	// let (leaf, index) = mt.insert(message).unwrap();
+	// let (leaf, index) = mt.insert(message).unwrap();
 
 	// assert_eq!(mt.update(), mt.get_root());
-  //   assert_eq!(U256::zero(), mt.get_root());
+	//   assert_eq!(U256::zero(), mt.get_root());
 
-  //   let index  = 0;
+	//   let index  = 0;
 	// let merkle_proof = mt.get_proof(index);
 	//assert!(mt.verify_merkle_proof(leaf, merkle_proof, index));
 }

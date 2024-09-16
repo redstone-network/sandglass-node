@@ -18,7 +18,6 @@ pub const H160_POSITION_CURRENCY_ID_TYPE: usize = 9;
 pub const H160_POSITION_TOKEN: usize = 19;
 pub const H160_POSITION_FOREIGN_ASSET: Range<usize> = 18..20;
 
-
 macro_rules! create_currency_id {
   ($(#[$meta:meta])*
 $vis:vis enum TokenSymbol {

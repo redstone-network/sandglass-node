@@ -54,8 +54,8 @@ frame-system-benchmarking = { default-features = false, git = "https://github.co
 primitives = { path = "../primitives", default-features = false }
 
 # Local Dependencies
-# pallet-mixer = { default-features = false, path = "../pallets/mixer" }
 pallet-currencies = { default-features = false, path = "../pallets/currencies" }
+pallet-mixer = { default-features = false, path = "../pallets/mixer" }
 
 # Orml
 orml-traits = { path = "../open-runtime-module-library/traits", default-features = false }
@@ -80,7 +80,7 @@ std = [
 	"pallet-balances/std",
 	"pallet-grandpa/std",
 	"pallet-sudo/std",
-	# "pallet-mixer/std",
+	"pallet-mixer/std",
 	"pallet-timestamp/std",
 	"pallet-transaction-payment-rpc-runtime-api/std",
 	"pallet-transaction-payment/std",

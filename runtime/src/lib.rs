@@ -55,7 +55,7 @@ pub use sp_runtime::BuildStorage;
 pub use sp_runtime::{Perbill, Permill};
 
 /// Import the mixer pallet.
-// pub use pallet_mixer;
+pub use pallet_mixer;
 
 /// An index to a block.
 pub type BlockNumber = u32;
@@ -351,7 +351,7 @@ construct_runtime!(
 		Tokens: orml_tokens,
 		Currencies: pallet_currencies,
 		// Include the custom logic from the pallet-template in the runtime.
-		// Mixer: pallet_mixer,
+		Mixer: pallet_mixer,
 	}
 );
 
