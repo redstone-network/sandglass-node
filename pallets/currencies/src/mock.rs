@@ -424,10 +424,9 @@ pub fn deploy_contracts() {
 	System::set_block_number(1);
 
 	//from https://github.com/AcalaNetwork/Acala/blob/master/ts-tests/build/Erc20DemoContract2.json
-	let json: serde_json::Value = serde_json::from_str(include_str!(
-		"../../../node/tests/data/Erc20DemoContract2.json"
-	))
-	.unwrap();
+	let json: serde_json::Value =
+		serde_json::from_str(include_str!("../../../node/tests/data/Erc20DemoContract2.json"))
+			.unwrap();
 
 	let code = hex::decode(json.get("bytecode").unwrap().as_str().unwrap()).unwrap();
 
@@ -457,10 +456,9 @@ pub fn deploy_erc1155_contracts() {
 	System::set_block_number(1);
 
 	//Erc1155DemoContract.json build from ethereum-waffle
-	let json: serde_json::Value = serde_json::from_str(include_str!(
-		"../../../node/tests/data/Erc1155DemoContract.json"
-	))
-	.unwrap();
+	let json: serde_json::Value =
+		serde_json::from_str(include_str!("../../../node/tests/data/Erc1155DemoContract.json"))
+			.unwrap();
 
 	let code = hex::decode(json.get("bytecode").unwrap().as_str().unwrap()).unwrap();
 
@@ -503,9 +501,7 @@ impl ExtBuilder {
 	}
 
 	pub fn build(self) -> sp_io::TestExternalities {
-		let mut t = frame_system::GenesisConfig::default()
-			.build_storage::<Test>()
-			.unwrap();
+		let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
 
 		pallet_balances::GenesisConfig::<Test> {
 			balances: self

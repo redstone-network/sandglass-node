@@ -12,11 +12,11 @@ use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
 use sp_runtime::{
 	create_runtime_str, generic, impl_opaque_keys,
-	traits::{BlakeTwo256, Block as BlockT, IdentifyAccount, NumberFor, One, Verify},
+	traits::{BlakeTwo256, Block as BlockT, IdentifyAccount, NumberFor, One, Verify, Zero},
 	transaction_validity::{TransactionSource, TransactionValidity},
-	ApplyExtrinsicResult, MultiSignature,
+	ApplyExtrinsicResult, ExtrinsicInclusionMode, MultiSignature,
 };
-use sp_std::prelude::*;
+use sp_std::{marker, prelude::*};
 #[cfg(feature = "std")]
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
@@ -37,16 +37,25 @@ pub use frame_support::{
 	},
 	StorageValue,
 };
+use frame_support::{traits::AsEnsureOriginWithArg, PalletId};
 pub use frame_system::Call as SystemCall;
+use frame_system::{EnsureRoot, EnsureSigned};
+use orml_traits::parameter_type_with_key;
 pub use pallet_balances::Call as BalancesCall;
+use pallet_currencies::BasicCurrencyAdapter;
 pub use pallet_timestamp::Call as TimestampCall;
 use pallet_transaction_payment::{ConstFeeMultiplier, CurrencyAdapter, Multiplier};
+use primitives::{
+	currency::{CurrencyId, TokenSymbol},
+	Amount,
+};
+
 #[cfg(any(feature = "std", test))]
 pub use sp_runtime::BuildStorage;
 pub use sp_runtime::{Perbill, Permill};
 
 /// Import the mixer pallet.
-pub use pallet_mixer;
+// pub use pallet_mixer;
 
 /// An index to a block.
 pub type BlockNumber = u32;
@@ -250,12 +259,81 @@ impl pallet_sudo::Config for Runtime {
 }
 
 /// Configure the pallet-mixer in pallets/mixer.
-impl pallet_mixer::Config for Runtime {
+// impl pallet_mixer::Config for Runtime {
+// 	type RuntimeEvent = RuntimeEvent;
+// 	type WeightInfo = pallet_mixer::weights::SubstrateWeight<Runtime>;
+// 	type MaxPublicInputsLength = ConstU32<9>;
+// 	type MaxProofLength = ConstU32<1115>;
+// 	type MaxVerificationKeyLength = ConstU32<4079>;
+// }
+
+parameter_types! {
+	pub const AssetDeposit: u64 = 1;
+	pub const ApprovalDeposit: u64 = 1;
+	pub const AssetAccountDeposit: u64 = 1;
+	pub const StringLimit: u32 = 50;
+	pub const MetadataDepositBase: u64 = 1;
+	pub const MetadataDepositPerByte: u64 = 1;
+}
+
+impl pallet_assets::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	type WeightInfo = pallet_mixer::weights::SubstrateWeight<Runtime>;
-	type MaxPublicInputsLength = ConstU32<9>;
-	type MaxProofLength = ConstU32<1115>;
-	type MaxVerificationKeyLength = ConstU32<4079>;
+	type Balance = Balance;
+	type AssetId = u32;
+	type AssetIdParameter = u32;
+	type Currency = Balances;
+	type CreateOrigin = AsEnsureOriginWithArg<EnsureSigned<AccountId>>;
+	type ForceOrigin = EnsureRoot<AccountId>;
+	type AssetDeposit = AssetDeposit;
+	type MetadataDepositBase = MetadataDepositBase;
+	type MetadataDepositPerByte = MetadataDepositPerByte;
+	type AssetAccountDeposit = AssetAccountDeposit;
+	type ApprovalDeposit = ApprovalDeposit;
+	type StringLimit = StringLimit;
+	type Freezer = ();
+	type Extra = ();
+	type WeightInfo = ();
+	type RemoveItemsLimit = frame_support::traits::ConstU32<1000>;
+	type CallbackHandle = ();
+}
+
+parameter_type_with_key! {
+  pub ExistentialDeposits: |_currency_id: CurrencyId| -> Balance {
+		Zero::zero()
+  };
+}
+
+pub type ReserveIdentifier = [u8; 8];
+
+parameter_types! {
+	// For weight estimation, we assume that the most locks on an individual account will be 50.
+	// This number may need to be adjusted in the future if this assumption no longer holds true.
+	pub const MaxLocks: u32 = 50;
+}
+impl orml_tokens::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type Balance = Balance;
+	type Amount = Amount;
+	type CurrencyId = CurrencyId;
+	type WeightInfo = ();
+	type ExistentialDeposits = ExistentialDeposits;
+	type CurrencyHooks = ();
+	type MaxLocks = MaxLocks;
+	type DustRemovalWhitelist = ();
+	type MaxReserves = ConstU32<0>; // we don't use named reserves
+	type ReserveIdentifier = (); // we don't use named reserves
+}
+
+parameter_types! {
+	pub const NativeCurrencyId: CurrencyId = CurrencyId::Token(TokenSymbol::DOT);
+}
+
+impl pallet_currencies::Config for Runtime {
+	type MultiCurrency = Tokens;
+	type NativeCurrency = BasicCurrencyAdapter<Runtime, Balances, Amount, BlockNumber>;
+	type LocalAsset = Assets;
+	type GetNativeCurrencyId = NativeCurrencyId;
+	type WeightInfo = ();
 }
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
@@ -268,8 +346,12 @@ construct_runtime!(
 		Balances: pallet_balances,
 		TransactionPayment: pallet_transaction_payment,
 		Sudo: pallet_sudo,
+
+		Assets: pallet_assets,
+		Tokens: orml_tokens,
+		Currencies: pallet_currencies,
 		// Include the custom logic from the pallet-template in the runtime.
-		Mixer: pallet_mixer,
+		// Mixer: pallet_mixer,
 	}
 );
 
@@ -334,7 +416,7 @@ impl_runtime_apis! {
 			Executive::execute_block(block);
 		}
 
-		fn initialize_block(header: &<Block as BlockT>::Header) {
+		fn initialize_block(header: &<Block as BlockT>::Header) -> ExtrinsicInclusionMode{
 			Executive::initialize_block(header)
 		}
 	}
