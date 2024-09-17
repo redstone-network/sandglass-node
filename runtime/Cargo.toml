@@ -78,6 +78,7 @@ std = [
 	"pallet-aura/std",
 	"pallet-assets/std",
 	"pallet-balances/std",
+	"pallet-currencies/std",
 	"pallet-grandpa/std",
 	"pallet-sudo/std",
 	"pallet-mixer/std",
@@ -103,6 +104,7 @@ std = [
 	"substrate-wasm-builder",
 	"orml-traits/std",
 	"orml-tokens/std",
+	"primitives/std",
 ]
 runtime-benchmarks = [
 	"frame-benchmarking/runtime-benchmarks",
