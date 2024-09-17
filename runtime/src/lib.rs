@@ -259,13 +259,13 @@ impl pallet_sudo::Config for Runtime {
 }
 
 /// Configure the pallet-mixer in pallets/mixer.
-// impl pallet_mixer::Config for Runtime {
-// 	type RuntimeEvent = RuntimeEvent;
-// 	type WeightInfo = pallet_mixer::weights::SubstrateWeight<Runtime>;
-// 	type MaxPublicInputsLength = ConstU32<9>;
-// 	type MaxProofLength = ConstU32<1115>;
-// 	type MaxVerificationKeyLength = ConstU32<4079>;
-// }
+impl pallet_mixer::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type WeightInfo = pallet_mixer::weights::SubstrateWeight<Runtime>;
+	type MaxPublicInputsLength = ConstU32<9>;
+	type MaxProofLength = ConstU32<1115>;
+	type MaxVerificationKeyLength = ConstU32<4079>;
+}
 
 parameter_types! {
 	pub const AssetDeposit: u64 = 1;

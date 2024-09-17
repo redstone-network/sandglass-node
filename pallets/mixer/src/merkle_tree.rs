@@ -2,7 +2,6 @@ use core::mem::size_of;
 use sp_std::vec::Vec;
 
 use num_bigint::{BigInt, Sign};
-use once_cell::sync::Lazy;
 use tiny_keccak::{Hasher, Keccak};
 
 use mimc_rs::Mimc7;
@@ -16,8 +15,7 @@ static TREE_DEPTH: usize = 10;
 // 1<<20 leaves
 const MAX_LEAF_COUNT: usize = 1024;
 
-static FILL_LEVEL_IVS: Lazy<Vec<U256>> = Lazy::new(|| {
-	let ivs = [
+static FILL_LEVEL_IVS: Vec<U256>> = vec![
 		"149674538925118052205057075966660054952481571156186698930522557832224430770",
 		"9670701465464311903249220692483401938888498641874948577387207195814981706974",
 		"18318710344500308168304415114839554107298291987930233567781901093928276468271",
@@ -47,9 +45,7 @@ static FILL_LEVEL_IVS: Lazy<Vec<U256>> = Lazy::new(|| {
 		"16932161189449419608528042274282099409408565503929504242784173714823499212410",
 		"16562533130736679030886586765487416082772837813468081467237161865787494093536",
 		"6037428193077828806710267464232314380014232668931818917272972397574634037180",
-	];
-	ivs.iter().map(|iv| U256::from_dec_str(iv).unwrap()).collect::<Vec<_>>()
-});
+	].iter().map(|iv| U256::from_dec_str(iv).unwrap()).collect::<Vec<_>>();
 
 #[derive(Clone, Debug)]
 pub struct MerkleTree {
