@@ -64,6 +64,7 @@ pub use weights::*;
 pub mod common;
 pub mod deserialization;
 //pub mod merkle_tree;
+pub mod mimc;
 pub mod verify;
 
 use frame_support::storage::bounded_vec::BoundedVec;
