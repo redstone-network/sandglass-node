@@ -1,51 +1,21 @@
+use ark_bn254::Fr;
 use core::mem::size_of;
-use sp_std::vec::Vec;
+use sp_std::{vec, vec::Vec};
 
 use num_bigint::{BigInt, Sign};
 use tiny_keccak::{Hasher, Keccak};
 
-use mimc_rs::Mimc7;
+use ark_std::{str::FromStr, string::ToString, Zero};
+use mimc::Mimc7;
 use sp_core::U256;
 
 use super::*;
 
 // ceil(log2(1<<20))
-static TREE_DEPTH: usize = 10;
+static TREE_DEPTH: usize = 8;
 
 // 1<<20 leaves
-const MAX_LEAF_COUNT: usize = 1024;
-
-static FILL_LEVEL_IVS: Vec<U256>> = vec![
-		"149674538925118052205057075966660054952481571156186698930522557832224430770",
-		"9670701465464311903249220692483401938888498641874948577387207195814981706974",
-		"18318710344500308168304415114839554107298291987930233567781901093928276468271",
-		"6597209388525824933845812104623007130464197923269180086306970975123437805179",
-		"21720956803147356712695575768577036859892220417043839172295094119877855004262",
-		"10330261616520855230513677034606076056972336573153777401182178891807369896722",
-		"17466547730316258748333298168566143799241073466140136663575045164199607937939",
-		"18881017304615283094648494495339883533502299318365959655029893746755475886610",
-		"21580915712563378725413940003372103925756594604076607277692074507345076595494",
-		"12316305934357579015754723412431647910012873427291630993042374701002287130550",
-		"18905410889238873726515380969411495891004493295170115920825550288019118582494",
-		"12819107342879320352602391015489840916114959026915005817918724958237245903353",
-		"8245796392944118634696709403074300923517437202166861682117022548371601758802",
-		"16953062784314687781686527153155644849196472783922227794465158787843281909585",
-		"19346880451250915556764413197424554385509847473349107460608536657852472800734",
-		"14486794857958402714787584825989957493343996287314210390323617462452254101347",
-		"11127491343750635061768291849689189917973916562037173191089384809465548650641",
-		"12217916643258751952878742936579902345100885664187835381214622522318889050675",
-		"722025110834410790007814375535296040832778338853544117497481480537806506496",
-		"15115624438829798766134408951193645901537753720219896384705782209102859383951",
-		"11495230981884427516908372448237146604382590904456048258839160861769955046544",
-		"16867999085723044773810250829569850875786210932876177117428755424200948460050",
-		"1884116508014449609846749684134533293456072152192763829918284704109129550542",
-		"14643335163846663204197941112945447472862168442334003800621296569318670799451",
-		"1933387276732345916104540506251808516402995586485132246682941535467305930334",
-		"7286414555941977227951257572976885370489143210539802284740420664558593616067",
-		"16932161189449419608528042274282099409408565503929504242784173714823499212410",
-		"16562533130736679030886586765487416082772837813468081467237161865787494093536",
-		"6037428193077828806710267464232314380014232668931818917272972397574634037180",
-	].iter().map(|iv| U256::from_dec_str(iv).unwrap()).collect::<Vec<_>>();
+const MAX_LEAF_COUNT: usize = 256;
 
 #[derive(Clone, Debug)]
 pub struct MerkleTree {
@@ -69,53 +39,34 @@ impl Default for MerkleTree {
 
 impl MerkleTree {
 	fn init(&mut self) {
-		for depth in 0..TREE_DEPTH {
-			self.leaves[depth]
-				.clone()
-				.chunks_exact(2)
-				.enumerate()
-				.for_each(|(index, chunk)| {
-					self.leaves[depth][index * 2] =
-						Self::get_unique_leaf(depth, index * 2, chunk[0].clone());
-					self.leaves[depth][index * 2 + 1] =
-						Self::get_unique_leaf(depth, index * 2 + 1, chunk[1].clone());
-					self.leaves[depth + 1][index] = Self::hash_impl(
-						&self.leaves[depth][index * 2],
-						&self.leaves[depth][index * 2 + 1],
-						&FILL_LEVEL_IVS[depth],
-					);
-				})
-		}
+		// for depth in 0..TREE_DEPTH {
+		// 	self.leaves[depth]
+		// 		.clone()
+		// 		.chunks_exact(2)
+		// 		.enumerate()
+		// 		.for_each(|(index, chunk)| {
+		// 			self.leaves[depth][index * 2] =
+		// 				Self::get_unique_leaf(depth, index * 2, chunk[0].clone());
+		// 			self.leaves[depth][index * 2 + 1] =
+		// 				Self::get_unique_leaf(depth, index * 2 + 1, chunk[1].clone());
+		// 			self.leaves[depth + 1][index] = Self::hash_impl(
+		// 				&self.leaves[depth][index * 2],
+		// 				&self.leaves[depth][index * 2 + 1],
+		// 				&FILL_LEVEL_IVS[depth],
+		// 			);
+		// 		})
+		// }
 	}
 
-	pub fn insert(&mut self, message: &[u8]) -> Result<(U256, usize), &'static str> {
-		let mimc7 = Mimc7::new();
-		let l = mimc7.hash_bytes(message.to_vec());
-
-		let leaf = match mimc7.hash_bytes(message.to_vec()) {
-			Ok(l) => {
-				let mut temp = [0u8; 32];
-				for (i, x) in l.to_bytes_be().1.iter().enumerate() {
-					temp[i] = *x;
-				}
-				U256::from_big_endian(&temp)
-			},
-			Err(e) => {
-				return Err("hash message fail");
-			},
-		};
-
-		if leaf.is_zero() {
-			return Err("leaf must be non-zero");
-		}
-
+	//@@
+	pub fn insert(&mut self, message: U256) -> Result<(U256, usize), &'static str> {
 		let offset = self.cur;
-		self.leaves[0][self.cur] = leaf.clone();
+		self.leaves[0][self.cur] = message;
 
 		self.root = self.update();
 		self.cur += 1;
 
-		Ok((leaf, offset))
+		Ok((message, offset))
 	}
 
 	// Update the leaves of the entire tree, return new tree root.
@@ -124,25 +75,28 @@ impl MerkleTree {
 		let mut leaf1: U256;
 		let mut leaf2: U256;
 
+		let mimc7 = Mimc7::new(91);
+
 		for depth in 0..TREE_DEPTH {
 			let next_index = current_index / 2;
 			if current_index % 2 == 0 {
 				leaf1 = self.leaves[depth][current_index].clone();
 				leaf2 = MerkleTree::get_unique_leaf(
-					depth,
-					current_index + 1,
 					self.leaves[depth][current_index + 1].clone(),
+					depth,
 				);
 			} else {
 				leaf1 = MerkleTree::get_unique_leaf(
-					depth,
-					current_index - 1,
 					self.leaves[depth][current_index - 1].clone(),
+					depth,
 				);
 				leaf2 = self.leaves[depth][current_index].clone();
 			}
+			let l1 = Fr::from_str(&leaf1.to_string()).unwrap();
+			let l2 = Fr::from_str(&leaf2.to_string()).unwrap();
+
 			self.leaves[depth + 1][next_index] =
-				MerkleTree::hash_impl(&leaf1, &leaf2, &FILL_LEVEL_IVS[depth]);
+				U256::from_dec_str(&mimc7.hash(&l1, &l2).to_string()).unwrap();
 			current_index = next_index;
 		}
 		self.root = self.leaves[TREE_DEPTH][0].clone();
@@ -151,7 +105,7 @@ impl MerkleTree {
 
 	// Return leaf according to depth and index,
 	pub fn get_leaf(&self, depth: usize, offset: usize) -> U256 {
-		MerkleTree::get_unique_leaf(depth, offset, self.leaves[depth][offset].clone())
+		self.leaves[depth][offset]
 	}
 
 	// get merkle tree root
@@ -165,7 +119,7 @@ impl MerkleTree {
 		let mut proof_path = vec![U256::zero(); TREE_DEPTH];
 
 		for depth in 0..TREE_DEPTH {
-			address_bits[depth] = index % 2 == 0;
+			//address_bits[depth] = index % 2 == 0;
 			if index % 2 == 0 {
 				proof_path[depth] = self.get_leaf(depth, index + 1);
 			} else {
@@ -177,69 +131,62 @@ impl MerkleTree {
 	}
 
 	//
-	pub fn verify_merkle_proof(&self, leaf: U256, proof: Vec<U256>, index: usize) -> bool {
-		if proof.len() != TREE_DEPTH && index > MAX_LEAF_COUNT {
-			return false;
-		}
-		self.verify_path(leaf, proof, index) == self.get_root()
-	}
+	// pub fn verify_merkle_proof(&self, leaf: U256, proof: Vec<U256>, index: usize) -> bool {
+	// 	if proof.len() != TREE_DEPTH && index > MAX_LEAF_COUNT {
+	// 		return false;
+	// 	}
+	// 	self.verify_path(leaf, proof, index) == self.get_root()
+	// }
 
 	// Returns calculated merkle root
-	pub fn verify_path(&self, leaf: U256, in_path: Vec<U256>, mut index: usize) -> U256 {
-		let mut item = leaf;
-		for depth in 0..TREE_DEPTH {
-			if index % 2 == 0 {
-				item = MerkleTree::hash_impl(&item, &in_path[depth], &FILL_LEVEL_IVS[depth]);
-			} else {
-				item = MerkleTree::hash_impl(&in_path[depth], &item, &FILL_LEVEL_IVS[depth]);
-			}
-			index /= 2;
-		}
-		item
-	}
+	// pub fn verify_path(&self, leaf: U256, in_path: Vec<U256>, mut index: usize) -> U256 {
+	// 	let mut item = leaf;
+	// 	for depth in 0..TREE_DEPTH {
+	// 		if index % 2 == 0 {
+	// 			item = MerkleTree::hash_impl(&item, &in_path[depth], &FILL_LEVEL_IVS[depth]);
+	// 		} else {
+	// 			item = MerkleTree::hash_impl(&in_path[depth], &item, &FILL_LEVEL_IVS[depth]);
+	// 		}
+	// 		index /= 2;
+	// 	}
+	// 	item
+	// }
 
-	//
-	pub fn get_unique_leaf(depth: usize, offset: usize, mut leaf: U256) -> U256 {
+	// @@
+	pub fn get_unique_leaf(mut leaf: U256, depth: usize) -> U256 {
 		if leaf.is_zero() {
-			// Keccak(depth, offset)
-			let mut input = [0u8; 32];
-			input[0..size_of::<usize>()].copy_from_slice(&depth.to_be_bytes()[..]);
-			input[size_of::<usize>()..2 * size_of::<usize>()]
-				.copy_from_slice(&offset.to_be_bytes()[..]);
-
-			let mut keccak = Keccak::v256();
-			let mut received = [0u8; 32];
-			keccak.update(&input[..]);
-			keccak.finalize(&mut received);
-
-			leaf = U256::from_big_endian(&received);
+			let mimc7 = Mimc7::new(91);
+			for depth in 0..depth {
+				let l = Fr::from_str(&leaf.to_string()).unwrap();
+				leaf = U256::from_dec_str(&mimc7.hash(&l, &l).to_string()).unwrap();
+			}
 		}
 		leaf
 	}
 
 	// Use two leaves to generate mimc hash
-	fn hash_impl(left: &U256, right: &U256, iv: &U256) -> U256 {
-		let mut left_arr = [0u8; 32];
-		let mut right_arr = [0u8; 32];
-		left.to_big_endian(&mut left_arr[0..32]);
-		right.to_big_endian(&mut right_arr[0..32]);
-		let left_new = BigInt::from_bytes_be(Sign::Plus, &left_arr);
-		let right_new = BigInt::from_bytes_be(Sign::Plus, &right_arr);
-		let input = vec![left_new, right_new];
-		let mimc7 = Mimc7::new();
-		let rt = match mimc7.hash(input) {
-			Ok(l) => {
-				let mut temp = [0u8; 32];
-				for (i, x) in l.to_bytes_be().1.iter().enumerate() {
-					temp[i] = *x;
-				}
-				U256::from_big_endian(&temp)
-			},
-			Err(e) => return U256::zero(),
-		};
+	// fn hash_impl(left: &U256, right: &U256, iv: &U256) -> U256 {
+	// 	let mut left_arr = [0u8; 32];
+	// 	let mut right_arr = [0u8; 32];
+	// 	left.to_big_endian(&mut left_arr[0..32]);
+	// 	right.to_big_endian(&mut right_arr[0..32]);
+	// 	let left_new = BigInt::from_bytes_be(Sign::Plus, &left_arr);
+	// 	let right_new = BigInt::from_bytes_be(Sign::Plus, &right_arr);
+	// 	let input = vec![left_new, right_new];
+	// 	let mimc7 = Mimc7::new(91);
+	// 	let rt = match mimc7.hash(input) {
+	// 		Ok(l) => {
+	// 			let mut temp = [0u8; 32];
+	// 			for (i, x) in l.to_bytes_be().1.iter().enumerate() {
+	// 				temp[i] = *x;
+	// 			}
+	// 			U256::from_big_endian(&temp)
+	// 		},
+	// 		Err(e) => return U256::zero(),
+	// 	};
 
-		rt
-	}
+	// 	rt
+	// }
 }
 
 // #[test]

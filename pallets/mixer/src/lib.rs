@@ -63,7 +63,7 @@ pub use weights::*;
 
 pub mod common;
 pub mod deserialization;
-//pub mod merkle_tree;
+pub mod merkle_tree;
 pub mod mimc;
 pub mod verify;
 
