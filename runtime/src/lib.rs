@@ -258,6 +258,11 @@ impl pallet_sudo::Config for Runtime {
 	type WeightInfo = pallet_sudo::weights::SubstrateWeight<Runtime>;
 }
 
+parameter_types! {
+	pub const MixerPalletId: PalletId = PalletId(*b"py/mixer");
+	pub const UnsignedPriority: BlockNumber = 1;
+}
+
 /// Configure the pallet-mixer in pallets/mixer.
 impl pallet_mixer::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
@@ -265,6 +270,7 @@ impl pallet_mixer::Config for Runtime {
 	type MaxPublicInputsLength = ConstU32<9>;
 	type MaxProofLength = ConstU32<1115>;
 	type MaxVerificationKeyLength = ConstU32<4079>;
+	type PalletId = MixerPalletId;
 }
 
 parameter_types! {

@@ -2,6 +2,7 @@ use crate as pallet_template;
 use frame_support::{
 	derive_impl, parameter_types,
 	traits::{ConstU16, ConstU64},
+	PalletId,
 };
 use sp_core::H256;
 use sp_runtime::{
@@ -49,6 +50,7 @@ impl frame_system::Config for Test {
 }
 
 parameter_types! {
+	pub const MixerPalletId: PalletId = PalletId(*b"py/mixer");
 	pub const MaxPublicInputsLength: u32 = 9;
 	pub const MaxVerificationKeyLength: u32 = 4143;
 	pub const MaxProofLength: u32 = 1133;
@@ -60,6 +62,7 @@ impl pallet_template::Config for Test {
 	type MaxPublicInputsLength = MaxPublicInputsLength;
 	type MaxProofLength = MaxProofLength;
 	type MaxVerificationKeyLength = MaxVerificationKeyLength;
+	type PalletId = MixerPalletId;
 }
 
 // Build genesis storage according to the mock runtime.

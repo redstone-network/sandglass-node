@@ -83,14 +83,15 @@ pub mod pallet {
 	use crate::{
 		common::prepare_verification_key,
 		deserialization::{deserialize_public_inputs, Proof, VKey},
-		//merkle_tree::MerkleTree,
+		merkle_tree::MerkleTree,
 		verify::{
 			prepare_public_inputs, verify, G1UncompressedBytes, G2UncompressedBytes, GProof,
 			VerificationKey, SUPPORTED_CURVE, SUPPORTED_PROTOCOL,
 		},
 	};
-	use frame_support::pallet_prelude::*;
+	use frame_support::{pallet_prelude::*, PalletId};
 	use frame_system::pallet_prelude::*;
+	use sp_runtime::traits::AccountIdConversion;
 
 	const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
 
@@ -121,6 +122,9 @@ pub mod pallet {
 		/// The maximum length of the verification key.
 		#[pallet::constant]
 		type MaxVerificationKeyLength: Get<u32>;
+
+		#[pallet::constant]
+		type PalletId: Get<PalletId>;
 	}
 
 	/// A storage item for this pallet.
@@ -323,20 +327,26 @@ pub mod pallet {
 
 			ensure!(!Commitments::<T>::contains_key(c), Error::<T>::CommitmentHasBeanSubmitted);
 
-			// MerkleVec::<T>::try_mutate(|merkle_vec| -> DispatchResult {
-			// 	let _ = merkle_vec.try_push(c);
-			// 	Ok(())
-			// })?;
+			MerkleVec::<T>::try_mutate(|merkle_vec| -> DispatchResult {
+				let _ = merkle_vec.try_push(c);
+				Ok(())
+			})?;
 
-			// let merkle_vec = MerkleVec::<T>::get();
-			// let len = merkle_vec.len();
+			let merkle_vec = MerkleVec::<T>::get();
+			let len = merkle_vec.len();
 
-			// Commitments::<T>::insert(c, true);
-			// let mut mt = MerkleTree::default();
-			// let (leaf, index) = mt.insert(&commitment).unwrap();
+			for x in &merkle_vec {
+				Commitments::<T>::insert(x, true);
+			}
 
-			// let root = mt.get_root();
-			// Roots::<T>::insert(root, true);
+			Commitments::<T>::insert(c, true);
+			let mut mt = MerkleTree::default();
+			let (leaf, index) = mt.insert(U256::from_little_endian(&commitment)).unwrap();
+
+			let root = mt.get_root();
+			Roots::<T>::insert(root, true);
+
+			// todo transfer token to pallet-mixer
 
 			Ok(())
 		}
@@ -350,8 +360,6 @@ pub mod pallet {
 			nullifier_hash: Vec<u8>,
 			receiver: T::AccountId,
 		) -> DispatchResult {
-			// Check that the extrinsic was signed and get the signer.
-
 			let nullifier_hash = U256::from_little_endian(&nullifier_hash);
 			ensure!(
 				!NullifierHashes::<T>::contains_key(nullifier_hash),
@@ -458,5 +466,9 @@ pub mod pallet {
 		.map_err(|_| Error::<T>::ProofCreationError)?;
 
 		Ok(proof)
+	}
+
+	pub fn account_id<T: Config>() -> <T as frame_system::Config>::AccountId {
+		<T as Config>::PalletId::get().into_account_truncating()
 	}
 }

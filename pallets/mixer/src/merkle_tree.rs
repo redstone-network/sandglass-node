@@ -121,8 +121,10 @@ impl MerkleTree {
 		for depth in 0..TREE_DEPTH {
 			//address_bits[depth] = index % 2 == 0;
 			if index % 2 == 0 {
+				address_bits[depth] = true;
 				proof_path[depth] = self.get_leaf(depth, index + 1);
 			} else {
+				address_bits[depth] = false;
 				proof_path[depth] = self.get_leaf(depth, index - 1);
 			}
 			index /= 2;
@@ -194,16 +196,33 @@ fn test_merkle_tree_root_hash() {
 	let mut mt = MerkleTree::default();
 
 	assert_eq!(mt.update(), mt.get_root());
-	assert_eq!(U256::from_dec_str("15118794022989096240414562605246342209918117228209570959055463092364691057063").unwrap(), mt.get_root());
+	assert_eq!(
+		U256::from_dec_str(
+			"15118794022989096240414562605246342209918117228209570959055463092364691057063"
+		)
+		.unwrap(),
+		mt.get_root()
+	);
 
-	let (leaf, index) = mt.insert(U256::from_dec_str("1").unwrap() ).unwrap();
+	let (leaf, index) = mt.insert(U256::from_dec_str("1").unwrap()).unwrap();
 	print!("{:?} {:?}", leaf, index);
-	assert_eq!(U256::from_dec_str("11918823777688916996440235409179584458198237132535057418448191606750426488941").unwrap(), mt.get_root());
+	assert_eq!(
+		U256::from_dec_str(
+			"11918823777688916996440235409179584458198237132535057418448191606750426488941"
+		)
+		.unwrap(),
+		mt.get_root()
+	);
 
-	let (leaf, index) = mt.insert(U256::from_dec_str("2").unwrap() ).unwrap();
+	let (leaf, index) = mt.insert(U256::from_dec_str("2").unwrap()).unwrap();
 	print!("{:?} {:?}", leaf, index);
-	assert_eq!(U256::from_dec_str("4056297984077945401031160722288226165138515589996813440303114275064200657118").unwrap(), mt.get_root());
-
+	assert_eq!(
+		U256::from_dec_str(
+			"4056297984077945401031160722288226165138515589996813440303114275064200657118"
+		)
+		.unwrap(),
+		mt.get_root()
+	);
 
 	// let index  = 0;
 	// let merkle_proof = mt.get_proof(index);
