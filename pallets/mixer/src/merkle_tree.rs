@@ -189,34 +189,23 @@ impl MerkleTree {
 	// }
 }
 
-// #[test]
-// fn test_merkle_tree() {
-// 	let mut mt = MerkleTree::default();
-// 	let message = b"hello world";
-// 	let (leaf, index) = mt.insert(message).unwrap();
-// 	assert_eq!(mt.update(), mt.get_root());
-
-// 	let merkle_proof = mt.get_proof(index);
-// 	assert!(mt.verify_merkle_proof(leaf, merkle_proof, index));
-// }
-
 #[test]
 fn test_merkle_tree_root_hash() {
 	let mut mt = MerkleTree::default();
 
-	// let (leaf, index) = mt.insert(message).unwrap();
-	// let (leaf, index) = mt.insert(message).unwrap();
-	// let (leaf, index) = mt.insert(message).unwrap();
-	// let (leaf, index) = mt.insert(message).unwrap();
-	// let (leaf, index) = mt.insert(message).unwrap();
-	// let (leaf, index) = mt.insert(message).unwrap();
-	// let (leaf, index) = mt.insert(message).unwrap();
-	// let (leaf, index) = mt.insert(message).unwrap();
+	assert_eq!(mt.update(), mt.get_root());
+	assert_eq!(U256::from_dec_str("15118794022989096240414562605246342209918117228209570959055463092364691057063").unwrap(), mt.get_root());
 
-	// assert_eq!(mt.update(), mt.get_root());
-	//   assert_eq!(U256::zero(), mt.get_root());
+	let (leaf, index) = mt.insert(U256::from_dec_str("1").unwrap() ).unwrap();
+	print!("{:?} {:?}", leaf, index);
+	assert_eq!(U256::from_dec_str("11918823777688916996440235409179584458198237132535057418448191606750426488941").unwrap(), mt.get_root());
 
-	//   let index  = 0;
+	let (leaf, index) = mt.insert(U256::from_dec_str("2").unwrap() ).unwrap();
+	print!("{:?} {:?}", leaf, index);
+	assert_eq!(U256::from_dec_str("4056297984077945401031160722288226165138515589996813440303114275064200657118").unwrap(), mt.get_root());
+
+
+	// let index  = 0;
 	// let merkle_proof = mt.get_proof(index);
 	//assert!(mt.verify_merkle_proof(leaf, merkle_proof, index));
 }
