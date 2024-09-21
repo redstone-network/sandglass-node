@@ -4,6 +4,7 @@ members = [
     'primitives',
     'pallets/currencies',
     'pallets/mixer',
+    'pallets/swap',
     'runtime',
 ]
 resolver = "2"
