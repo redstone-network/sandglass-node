@@ -258,6 +258,12 @@ impl pallet_sudo::Config for Runtime {
 	type WeightInfo = pallet_sudo::weights::SubstrateWeight<Runtime>;
 }
 
+impl pallet_swap::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type WeightInfo = ();
+	type Currency = Currencies;
+}
+
 parameter_types! {
 	pub const MixerPalletId: PalletId = PalletId(*b"py/mixer");
 	pub const MixerBalance: Balance = 1_000;
@@ -273,6 +279,7 @@ impl pallet_mixer::Config for Runtime {
 	type PalletId = MixerPalletId;
 	type Currency = Balances;
 	type MixerBalance = MixerBalance;
+	type SwapApi = Swap;
 }
 
 parameter_types! {
@@ -358,6 +365,7 @@ construct_runtime!(
 		Assets: pallet_assets,
 		Tokens: orml_tokens,
 		Currencies: pallet_currencies,
+		Swap: pallet_swap,
 		// Include the custom logic from the pallet-template in the runtime.
 		Mixer: pallet_mixer,
 	}

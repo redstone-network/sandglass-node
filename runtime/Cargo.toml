@@ -55,6 +55,7 @@ primitives = { path = "../primitives", default-features = false }
 
 # Local Dependencies
 pallet-currencies = { default-features = false, path = "../pallets/currencies" }
+pallet-swap = { default-features = false, path = "../pallets/swap" }
 pallet-mixer = { default-features = false, path = "../pallets/mixer" }
 
 # Orml
@@ -81,6 +82,7 @@ std = [
 	"pallet-currencies/std",
 	"pallet-grandpa/std",
 	"pallet-sudo/std",
+	"pallet-swap/std",
 	"pallet-mixer/std",
 	"pallet-timestamp/std",
 	"pallet-transaction-payment-rpc-runtime-api/std",

@@ -70,6 +70,7 @@ pub mod pallet {
 	use frame_system::pallet_prelude::*;
 	use orml_traits::{arithmetic::Bounded, MultiCurrency, MultiReservableCurrency};
 	use orml_utilities::with_transaction_result;
+	use primitives::Swap;
 	use scale_info::TypeInfo;
 	use sp_runtime::traits::{AtLeast32BitUnsigned, One, Zero};
 
@@ -323,6 +324,47 @@ pub mod pallet {
 				Self::deposit_event(Event::OrderCancelled { order_id });
 
 				Ok(())
+			})?;
+			Ok(())
+		}
+	}
+
+	impl<T: Config> Swap<BalanceOf<T>, T::AccountId> for Pallet<T> {
+		fn get_target_amount(order_id: u32) -> BalanceOf<T> {
+			let order = Orders::<T>::get(order_id);
+			match order {
+				Some(o) => o.target_amount,
+				None => Default::default(),
+			}
+		}
+		fn inter_take_order(
+			taker: T::AccountId,
+			order_id: u32,
+			receiver: T::AccountId,
+		) -> DispatchResult {
+			Orders::<T>::try_mutate_exists(order_id, |order| -> DispatchResult {
+				let order = order.take().ok_or(Error::<T>::InvalidOrderId)?;
+
+				with_transaction_result(|| {
+					T::Currency::transfer(
+						order.target_currency_id,
+						&taker,
+						&order.owner,
+						order.target_amount,
+					)?;
+					let val = T::Currency::repatriate_reserved(
+						order.base_currency_id,
+						&order.owner,
+						&receiver,
+						order.base_amount,
+						BalanceStatus::Free,
+					)?;
+					ensure!(val.is_zero(), Error::<T>::InsufficientBalance);
+
+					Self::deposit_event(Event::OrderTaken { who: taker, order_id, order });
+
+					Ok(())
+				})
 			})?;
 			Ok(())
 		}

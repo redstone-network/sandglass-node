@@ -41,6 +41,8 @@ ark-ff = "0.4.2"
 ark-bn254 = "0.4.0"
 ark-std = { version = "0.4.0", default-features = false }
 
+primitives = { path = "../../primitives", default-features = false }
+
 [dev-dependencies]
 
 [features]
@@ -51,6 +53,7 @@ std = [
 	"frame-support/std",
 	"frame-system/std",
 	"pallet-balances/std",
+	"primitives/std",
 	"scale-info/std",
 	"serde_json/std",
 	"sp-core/std",

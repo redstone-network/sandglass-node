@@ -4753,6 +4753,7 @@ dependencies = [
  "pallet-grandpa",
  "pallet-mixer",
  "pallet-sudo",
+ "pallet-swap",
  "pallet-timestamp",
  "pallet-transaction-payment",
  "pallet-transaction-payment-rpc-runtime-api",
@@ -5225,6 +5226,7 @@ dependencies = [
  "pairing",
  "pallet-balances",
  "parity-scale-codec",
+ "primitives",
  "rand",
  "scale-info",
  "serde",
@@ -5276,7 +5278,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-template"
+name = "pallet-swap"
 version = "4.0.0-dev"
 dependencies = [
  "frame-benchmarking",
@@ -5286,6 +5288,7 @@ dependencies = [
  "orml-traits",
  "orml-utilities",
  "parity-scale-codec",
+ "primitives",
  "scale-info",
  "sp-core",
  "sp-io",

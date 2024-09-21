@@ -96,6 +96,7 @@ pub mod pallet {
 	};
 	use frame_support::{pallet_prelude::*, PalletId};
 	use frame_system::pallet_prelude::*;
+	use primitives::Swap;
 	use sp_runtime::traits::AccountIdConversion;
 
 	const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
@@ -136,6 +137,8 @@ pub mod pallet {
 
 		#[pallet::constant]
 		type MixerBalance: Get<BalanceOf<Self>>;
+
+		type SwapApi: Swap<BalanceOf<Self>, Self::AccountId>;
 	}
 
 	/// A storage item for this pallet.
@@ -250,8 +253,10 @@ pub mod pallet {
 		CanNotFindMerkelRoot,
 		/// Invalid withdraw proof
 		InvalidWithdrawProof,
-		/// blacklist rejected
+		/// Blacklist rejected
 		BlacklistRejected,
+		/// Amount must be equ
+		AmountMustBeEqu,
 	}
 
 	/// The pallet's dispatchable functions ([`Call`]s).
@@ -358,6 +363,56 @@ pub mod pallet {
 						AllowDeath,
 					)?;
 					//Ok(())
+				},
+				Ok(false) => {
+					//Self::deposit_event(Event::<T>::VerificationFailed);
+					return Err(Error::<T>::ProofVerificationFalse.into())
+				},
+				Err(e) => return Err(Error::<T>::ProofVerificationError.into()),
+			};
+
+			Ok(())
+		}
+
+		#[pallet::call_index(3)]
+		#[pallet::weight(0)]
+		pub fn swap(
+			origin: OriginFor<T>,
+			proof: Vec<u8>,
+			root: Vec<u8>,
+			nullifier_hash: Vec<u8>,
+			order_id: u32,
+			receiver: T::AccountId,
+		) -> DispatchResult {
+			let sender = ensure_signed(origin)?;
+
+			ensure!(!BlackList::<T>::contains_key(sender.clone()), Error::<T>::BlacklistRejected);
+			ensure!(!BlackList::<T>::contains_key(receiver.clone()), Error::<T>::BlacklistRejected);
+
+			let nullifier_hash = U256::from_big_endian(&nullifier_hash);
+			ensure!(
+				!NullifierHashes::<T>::contains_key(nullifier_hash),
+				Error::<T>::NoteHasBeanSpent
+			);
+
+			let root = U256::from_big_endian(&root);
+			ensure!(Roots::<T>::contains_key(root), Error::<T>::CanNotFindMerkelRoot);
+
+			let proof = parse_proof::<T>(proof)?;
+			let vk = get_verification_key::<T>()?;
+			let inputs = get_public_inputs::<T>()?;
+
+			let inputs = prepare_public_inputs(inputs);
+			match verify(vk, proof, inputs) {
+				Ok(true) => {
+					//Self::deposit_event(Event::<T>::VerificationSuccess { who: sender });
+					NullifierHashes::<T>::insert(nullifier_hash, true);
+
+					let amount = T::SwapApi::get_target_amount(order_id);
+
+					ensure!(amount == T::MixerBalance::get(), Error::<T>::AmountMustBeEqu);
+
+					T::SwapApi::inter_take_order(account_id::<T>(), order_id, receiver)?;
 				},
 				Ok(false) => {
 					//Self::deposit_event(Event::<T>::VerificationFailed);
