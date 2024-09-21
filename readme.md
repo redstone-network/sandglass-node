@@ -1,6 +1,9 @@
-# homework 1
+# Sandglass
+Privacy-Preserving Mixer Protocol
 
-## 编写存证模块的单元测试代码，包括
-创建存证的测试用例
-撤销存证的测试用例
-转移存证的测试用例
+
+git submodule update --init --recursive
+git submodule sync --recursive
+git submodule update --init --recursive
+
+cargo build --release

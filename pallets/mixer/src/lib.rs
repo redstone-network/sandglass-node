@@ -373,10 +373,6 @@ pub mod pallet {
 		let deserialized_public_inputs = deserialize_public_inputs(public_inputs.as_slice())
 			.map_err(|_| Error::<T>::MalformedPublicInputs)?;
 
-		println!(
-			"@@@ public_inputs {:?}, deserialized_public_inputs:  {:?}",
-			public_inputs, deserialized_public_inputs
-		);
 		PublicInputStorage::<T>::put(public_inputs);
 		Ok(deserialized_public_inputs)
 	}

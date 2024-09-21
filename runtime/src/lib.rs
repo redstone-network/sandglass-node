@@ -260,7 +260,7 @@ impl pallet_sudo::Config for Runtime {
 
 parameter_types! {
 	pub const MixerPalletId: PalletId = PalletId(*b"py/mixer");
-	pub const UnsignedPriority: BlockNumber = 1;
+	pub const MixerBalance: Balance = 1_000;
 }
 
 /// Configure the pallet-mixer in pallets/mixer.
@@ -271,6 +271,8 @@ impl pallet_mixer::Config for Runtime {
 	type MaxProofLength = ConstU32<5000>;
 	type MaxVerificationKeyLength = ConstU32<5000>;
 	type PalletId = MixerPalletId;
+	type Currency = Balances;
+	type MixerBalance = MixerBalance;
 }
 
 parameter_types! {
