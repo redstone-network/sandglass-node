@@ -394,7 +394,7 @@ pub mod pallet {
 		}
 	}
 
-	fn get_public_inputs<T: Config>() -> Result<Vec<u64>, sp_runtime::DispatchError> {
+	fn get_public_inputs<T: Config>() -> Result<Vec<sp_core::U256>, sp_runtime::DispatchError> {
 		let public_inputs = PublicInputStorage::<T>::get();
 		let deserialized_public_inputs = deserialize_public_inputs(public_inputs.as_slice())
 			.map_err(|_| Error::<T>::MalformedPublicInputs)?;
@@ -403,7 +403,7 @@ pub mod pallet {
 
 	fn store_public_inputs<T: Config>(
 		pub_input: Vec<u8>,
-	) -> Result<Vec<u64>, sp_runtime::DispatchError> {
+	) -> Result<Vec<U256>, sp_runtime::DispatchError> {
 		let public_inputs: PublicInputsDef<T> =
 			pub_input.try_into().map_err(|_| Error::<T>::TooLongPublicInputs)?;
 		let deserialized_public_inputs = deserialize_public_inputs(public_inputs.as_slice())
@@ -426,8 +426,10 @@ pub mod pallet {
 	fn store_verification_key<T: Config>(
 		vec_vk: Vec<u8>,
 	) -> Result<VKey, sp_runtime::DispatchError> {
-		let vk: VerificationKeyDef<T> =
-			vec_vk.try_into().map_err(|_| Error::<T>::TooLongVerificationKey)?;
+		let vk: VerificationKeyDef<T> = vec_vk.try_into().map_err(|e| {
+			//println!("@@@ store_verification_key err: {:?}", e);
+			Error::<T>::TooLongVerificationKey
+		})?;
 		let deserialized_vk = VKey::from_json_u8_slice(vk.as_slice())
 			.map_err(|_| Error::<T>::MalformedVerificationKey)?;
 		ensure!(deserialized_vk.curve == SUPPORTED_CURVE.as_bytes(), Error::<T>::NotSupportedCurve);

@@ -1,4 +1,5 @@
-use crate as pallet_template;
+use crate as pallet_mixer;
+use crate::Event;
 use frame_support::{
 	derive_impl, parameter_types,
 	traits::{ConstU16, ConstU64},
@@ -17,7 +18,7 @@ frame_support::construct_runtime!(
 	pub enum Test
 	{
 		System: frame_system,
-		TemplateModule: pallet_template,
+		MixerModule: pallet_mixer,
 	}
 );
 
@@ -51,12 +52,12 @@ impl frame_system::Config for Test {
 
 parameter_types! {
 	pub const MixerPalletId: PalletId = PalletId(*b"py/mixer");
-	pub const MaxPublicInputsLength: u32 = 9;
-	pub const MaxVerificationKeyLength: u32 = 4143;
-	pub const MaxProofLength: u32 = 1133;
+	pub const MaxPublicInputsLength: u32 = 2000;
+	pub const MaxVerificationKeyLength: u32 = 5000;
+	pub const MaxProofLength: u32 = 5000;
 }
 
-impl pallet_template::Config for Test {
+impl pallet_mixer::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = ();
 	type MaxPublicInputsLength = MaxPublicInputsLength;
@@ -68,4 +69,12 @@ impl pallet_template::Config for Test {
 // Build genesis storage according to the mock runtime.
 pub fn new_test_ext() -> sp_io::TestExternalities {
 	frame_system::GenesisConfig::<Test>::default().build_storage().unwrap().into()
+}
+
+pub fn zk_events() -> Vec<Event<Test>> {
+	System::events()
+		.into_iter()
+		.map(|r| r.event)
+		.filter_map(|e| if let RuntimeEvent::MixerModule(inner) = e { Some(inner) } else { None })
+		.collect()
 }

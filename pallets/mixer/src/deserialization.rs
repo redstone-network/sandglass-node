@@ -177,13 +177,22 @@ pub enum PublicInputsDeserializationError {
 /// * `inputs` - A byte array slice containing array of integers in json array form
 pub fn deserialize_public_inputs(
 	inputs: &[u8],
-) -> Result<Vec<u64>, PublicInputsDeserializationError> {
-	let inputs: Vec<&str> = serde_json::from_slice(inputs).unwrap();
-	let mut parsed_inputs: Vec<u64> = Vec::with_capacity(inputs.len());
+) -> Result<Vec<sp_core::U256>, PublicInputsDeserializationError> {
+	let inputs: Vec<&str> = match serde_json::from_slice(inputs) {
+		Ok(v) => v,
+		Err(e) => {
+			//println!("@@@ deserialize_public_inputs err: {:?} ", e);
+			return Err(PublicInputsDeserializationError::SerdeError)
+		},
+	};
+	let mut parsed_inputs: Vec<sp_core::U256> = Vec::with_capacity(inputs.len());
 	for input in inputs {
-		match input.parse::<u64>() {
+		match sp_core::U256::from_dec_str(&input) {
 			Ok(n) => parsed_inputs.push(n),
-			Err(_) => return Err(PublicInputsDeserializationError::SerdeError),
+			Err(e) => {
+				//println!("@@@ parse  inputs err: {:?} ", e);
+				return Err(PublicInputsDeserializationError::SerdeError)
+			},
 		}
 	}
 	Ok(parsed_inputs)
@@ -384,12 +393,18 @@ mod tests {
 	#[test]
 	fn public_inputs_deserialization() {
 		let public_inputs_json = r#"[
- "33"
+ "12154017155188732043720388494527814426846884333686418648942396484836291069935"
 ]"#;
 		let public_inputs =
 			deserialize_public_inputs(public_inputs_json.as_bytes().into()).unwrap();
 		assert_eq!(public_inputs.len(), 1);
-		assert_eq!(public_inputs[0], 33);
+		assert_eq!(
+			public_inputs[0],
+			sp_core::U256::from_dec_str(
+				"12154017155188732043720388494527814426846884333686418648942396484836291069935"
+			)
+			.unwrap()
+		);
 	}
 
 	fn from_dec_string(dec_str: &str) -> Number {

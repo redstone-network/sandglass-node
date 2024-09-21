@@ -183,8 +183,15 @@ pub type VerificationResult = Result<bool, VerificationError>;
 pub type PublicInputs = Vec<Scalar>;
 
 /// Turns `u64` values into `Scalar` representation
-pub fn prepare_public_inputs(inputs: Vec<u64>) -> Vec<Scalar> {
-	inputs.into_iter().map(Scalar::from).collect()
+pub fn prepare_public_inputs(inputs: Vec<sp_core::U256>) -> Vec<Scalar> {
+	inputs
+		.into_iter()
+		.map(|x| {
+			let mut bytes = [0u8; 32];
+			x.to_big_endian(&mut bytes);
+			Scalar::from_bytes(&bytes).unwrap()
+		})
+		.collect()
 }
 
 /// Verifies given proof with given verification key and public inputs
