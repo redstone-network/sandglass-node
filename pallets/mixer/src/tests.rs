@@ -1,4 +1,4 @@
-use crate::{mock::*, Error, Event, Something};
+use crate::{mock::*, BlackList, Error, Event, Something};
 use frame_support::{assert_noop, assert_ok, traits::fungible::Inspect};
 use sp_core::U256;
 
@@ -90,6 +90,31 @@ fn test_withdraw() {
         Error::<Test>::NoteHasBeanSpent
     );
 
+
+	});
+}
+
+#[test]
+fn test_blacklist() {
+	new_test_ext().execute_with(|| {
+
+        BlackList::<Test>::insert(1, true);
+        let vk = prepare_vk_json("groth16", "bls12381", Some("3701847203724321478317961353917758270528478504282408535117312363800157867784070247396381164448597370877483548917602".to_owned()));
+		assert_ok!(MixerModule::setup_verification(
+			RuntimeOrigin::none(),
+			prepare_correct_public_inputs_json().as_bytes().into(),
+			vk.as_bytes().into()
+		));
+
+		assert_noop!(
+            MixerModule::deposit(RuntimeOrigin::signed(1),vec![1]),
+            Error::<Test>::BlacklistRejected
+        );
+
+        assert_noop!(
+			MixerModule::withdraw(RuntimeOrigin::signed(1), vec![1], vec![1], vec![1], 2),
+			Error::<Test>::BlacklistRejected
+		);
 
 	});
 }

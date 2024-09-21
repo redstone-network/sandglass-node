@@ -169,6 +169,10 @@ pub mod pallet {
 	#[pallet::storage]
 	pub type VerificationKeyStorage<T: Config> = StorageValue<_, VerificationKeyDef<T>, ValueQuery>;
 
+	#[pallet::storage]
+	#[pallet::getter(fn blacklist)]
+	pub type BlackList<T: Config> = StorageMap<_, Blake2_128Concat, T::AccountId, bool>;
+
 	/// Events that functions in this pallet can emit.
 	///
 	/// Events are a simple means of indicating to the outside world (such as dApps, chain explorers
@@ -246,6 +250,8 @@ pub mod pallet {
 		CanNotFindMerkelRoot,
 		/// Invalid withdraw proof
 		InvalidWithdrawProof,
+		/// blacklist rejected
+		BlacklistRejected,
 	}
 
 	/// The pallet's dispatchable functions ([`Call`]s).
@@ -282,6 +288,8 @@ pub mod pallet {
 		pub fn deposit(origin: OriginFor<T>, commitment: Vec<u8>) -> DispatchResult {
 			// Check that the extrinsic was signed and get the signer.
 			let who = ensure_signed(origin)?;
+
+			ensure!(!BlackList::<T>::contains_key(who.clone()), Error::<T>::BlacklistRejected);
 
 			let c = U256::from_big_endian(&commitment);
 
@@ -320,6 +328,11 @@ pub mod pallet {
 			nullifier_hash: Vec<u8>,
 			receiver: T::AccountId,
 		) -> DispatchResult {
+			let sender = ensure_signed(origin)?;
+
+			ensure!(!BlackList::<T>::contains_key(sender.clone()), Error::<T>::BlacklistRejected);
+			ensure!(!BlackList::<T>::contains_key(receiver.clone()), Error::<T>::BlacklistRejected);
+
 			let nullifier_hash = U256::from_big_endian(&nullifier_hash);
 			ensure!(
 				!NullifierHashes::<T>::contains_key(nullifier_hash),
@@ -332,7 +345,6 @@ pub mod pallet {
 			let proof = parse_proof::<T>(proof)?;
 			let vk = get_verification_key::<T>()?;
 			let inputs = get_public_inputs::<T>()?;
-			let sender = ensure_signed(origin)?;
 
 			let inputs = prepare_public_inputs(inputs);
 			match verify(vk, proof, inputs) {
