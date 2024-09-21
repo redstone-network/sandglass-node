@@ -24,6 +24,7 @@ sp-core = { default-features = false, git = "https://github.com/paritytech/polka
 sp-io = { default-features = false, git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-v1.9.0" }
 sp-runtime = { default-features = false, git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-v1.9.0" }
 sp-std = { default-features = false, git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-v1.9.0" }
+pallet-balances = { default-features = false, git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-v1.9.0" }
 bls12_381 = "0.7.0"
 pairing = "0.22.0"
 group = "0.12.1"
@@ -49,6 +50,7 @@ std = [
 	"frame-benchmarking?/std",
 	"frame-support/std",
 	"frame-system/std",
+	"pallet-balances/std",
 	"scale-info/std",
 	"serde_json/std",
 	"sp-core/std",

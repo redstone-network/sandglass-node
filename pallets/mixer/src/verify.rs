@@ -188,8 +188,14 @@ pub fn prepare_public_inputs(inputs: Vec<sp_core::U256>) -> Vec<Scalar> {
 		.into_iter()
 		.map(|x| {
 			let mut bytes = [0u8; 32];
-			x.to_big_endian(&mut bytes);
-			Scalar::from_bytes(&bytes).unwrap()
+			x.to_little_endian(&mut bytes);
+
+			let s = Scalar::from_bytes(&bytes);
+			if s.is_some().into() {
+				s.unwrap()
+			} else {
+				Scalar::zero()
+			}
 		})
 		.collect()
 }

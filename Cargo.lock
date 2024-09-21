@@ -5223,6 +5223,7 @@ dependencies = [
  "num",
  "num-bigint",
  "pairing",
+ "pallet-balances",
  "parity-scale-codec",
  "rand",
  "scale-info",

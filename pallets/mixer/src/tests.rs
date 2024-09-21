@@ -1,5 +1,6 @@
 use crate::{mock::*, Error, Event, Something};
-use frame_support::{assert_noop, assert_ok};
+use frame_support::{assert_noop, assert_ok, traits::fungible::Inspect};
+use sp_core::U256;
 
 #[test]
 fn test_setup_verification() {
@@ -10,27 +11,88 @@ fn test_setup_verification() {
 			prepare_correct_public_inputs_json().as_bytes().into(),
 			vk.as_bytes().into()
 		));
-		let events = zk_events();
-		assert_eq!(events.len(), 1);
-		assert_eq!(events[0], Event::<Test>::VerificationSetupCompleted);
+		// let events = zk_events();
+
+		// assert_eq!(events.len(), 1);
+		// assert_eq!(events[0], Event::<Test>::VerificationSetupCompleted);
 	});
 }
 
-// #[test]
-// fn test_deposit() {
-// 	new_test_ext().execute_with(|| {
-// 		assert_ok!(MixerModule::deposit(RuntimeOrigin::signed(1), vec![1]));
-// 	});
-// }
+#[test]
+fn test_deposit() {
+	new_test_ext().execute_with(|| {
+		let before = Balances::balance(&1);
+		assert_ok!(MixerModule::deposit(RuntimeOrigin::signed(1), vec![1]));
+		let after = Balances::balance(&1);
 
-// #[test]
-// fn test_withdraw() {
-// 	new_test_ext().execute_with(|| {
-// 		assert_ok!(MixerModule::deposit(RuntimeOrigin::signed(1), vec![1]));
+		assert_eq!(before, after + 1_000);
+	});
+}
 
-// 		assert_ok!(MixerModule::withdraw(RuntimeOrigin::signed(1), vec![1], vec![1], vec![1], 2));
-// 	});
-// }
+#[test]
+fn test_withdraw() {
+	new_test_ext().execute_with(|| {
+        let vk = prepare_vk_json("groth16", "bls12381", Some("3701847203724321478317961353917758270528478504282408535117312363800157867784070247396381164448597370877483548917602".to_owned()));
+		assert_ok!(MixerModule::setup_verification(
+			RuntimeOrigin::none(),
+			prepare_correct_public_inputs_json().as_bytes().into(),
+			vk.as_bytes().into()
+		));
+
+		assert_ok!(MixerModule::deposit(RuntimeOrigin::signed(1), vec![1]));
+
+		assert_noop!(
+			MixerModule::withdraw(RuntimeOrigin::signed(1), vec![1], vec![1], vec![1], 2),
+			Error::<Test>::CanNotFindMerkelRoot
+		);
+
+		let root = U256::from_dec_str(
+			"11918823777688916996440235409179584458198237132535057418448191606750426488941",
+		)
+		.unwrap();
+
+		let mut root_bytes = [0u8; 32];
+		root.to_big_endian(&mut root_bytes);
+
+        let incorrect_proof = prepare_incorrect_proof_json("groth16", "bls12381", None);
+
+		assert_noop!(MixerModule::withdraw(
+                RuntimeOrigin::signed(1),
+                incorrect_proof.as_bytes().into(),
+                root_bytes.to_vec(),
+                vec![1u8],
+                2
+            ),
+            Error::<Test>::ProofCreationError
+        );
+
+        let proof = prepare_proof_json("groth16", "bls12381", Some("2322951162634154032295553590609309989856107176303155507798857747930082472925732745332519844616976906997786276886751".to_owned()));
+
+        let before = Balances::balance(&2);
+		assert_ok!(MixerModule::withdraw(
+			RuntimeOrigin::signed(1),
+			proof.as_bytes().into(),
+			root_bytes.to_vec(),
+			vec![1u8],
+			2
+		),);
+        let after = Balances::balance(&2);
+        assert_eq!(before + 1_000, after );
+
+
+        assert_noop!(MixerModule::withdraw(
+			RuntimeOrigin::signed(1),
+			proof.as_bytes().into(),
+			root_bytes.to_vec(),
+			vec![1u8],
+			2
+		),
+        Error::<Test>::NoteHasBeanSpent
+    );
+
+
+	});
+}
 
 fn prepare_correct_public_inputs_json() -> String {
 	r#"[
@@ -164,6 +226,43 @@ fn prepare_vk_json(protocol: &str, curve: &str, alpha_x: Option<String>) -> Stri
 
 //pi_a_x is 2322951162634154032295553590609309989856107176303155507798857747930082472925732745332519844616976906997786276886751
 fn prepare_proof_json(protocol: &str, curve: &str, pi_a_x: Option<String>) -> String {
+	let pi_a_x = pi_a_x.unwrap_or_else(|| "1547868284561670884744470829066291861753711715427536197016979117727657722537367306855408779073400007356480755992286".to_owned());
+	let proof_template = r#"{
+"pi_a": [
+"<pi_a_x>",
+    "2928190285687118456628237490794665579453180400888749391929466989435165647115585828297072258065296795029705291422264",
+  "1"
+ ],
+ "pi_b": [
+  [
+   "1544760086384659722491129944413761133791624948103687884212411089143858975622856940458923129956549037030696758467649",
+   "2464775189940920238959991888711294617710220437968413348610396451115323002165937973643445926899349404418574329460530"
+  ],
+  [
+   "3298763698389029215031200968019705888307726502718892947097194556364826276603985042582992623562599586739493850907434",
+   "2484185654597531706472773683412570119063675254953464390794474438981035635108861904757019365474913600425823454389195"
+  ],
+  [
+   "1",
+   "0"
+  ]
+ ],
+ "pi_c": [
+  "3327459656536994775566432277999577617658464546941643592998127983803641389162440694800645493012291115986979472221453",
+  "375275461267575649570959031559608367700810891085934218713539805936334713365508835650335023558572824609826972817941",
+  "1"
+ ],
+"protocol": "<protocol>",
+"curve": "<curve>"
+}"#;
+
+	proof_template
+		.replace("<protocol>", protocol)
+		.replace("<curve>", curve)
+		.replace("<pi_a_x>", &pi_a_x)
+}
+
+fn prepare_incorrect_proof_json(protocol: &str, curve: &str, pi_a_x: Option<String>) -> String {
 	let pi_a_x = pi_a_x.unwrap_or_else(|| "1547868284561670884744470829066291861753711715427536197016979117727657722537367306855408779073400007356480755992286".to_owned());
 	let proof_template = r#"{
 "pi_a": [

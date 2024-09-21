@@ -2,7 +2,7 @@ use crate as pallet_mixer;
 use crate::Event;
 use frame_support::{
 	derive_impl, parameter_types,
-	traits::{ConstU16, ConstU64},
+	traits::{ConstU128, ConstU16, ConstU32, ConstU64},
 	PalletId,
 };
 use sp_core::H256;
@@ -11,6 +11,7 @@ use sp_runtime::{
 	BuildStorage,
 };
 
+pub type Balance = u128;
 type Block = frame_system::mocking::MockBlock<Test>;
 
 // Configure a mock runtime to test the pallet.
@@ -18,6 +19,7 @@ frame_support::construct_runtime!(
 	pub enum Test
 	{
 		System: frame_system,
+		Balances: pallet_balances,
 		MixerModule: pallet_mixer,
 	}
 );
@@ -41,7 +43,7 @@ impl frame_system::Config for Test {
 	type BlockHashCount = ConstU64<250>;
 	type Version = ();
 	type PalletInfo = PalletInfo;
-	type AccountData = ();
+	type AccountData = pallet_balances::AccountData<Balance>;
 	type OnNewAccount = ();
 	type OnKilledAccount = ();
 	type SystemWeightInfo = ();
@@ -50,11 +52,28 @@ impl frame_system::Config for Test {
 	type MaxConsumers = frame_support::traits::ConstU32<16>;
 }
 
+impl pallet_balances::Config for Test {
+	type Balance = Balance;
+	type DustRemoval = ();
+	type RuntimeEvent = RuntimeEvent;
+	type ExistentialDeposit = ConstU128<1>;
+	type AccountStore = System;
+	type WeightInfo = pallet_balances::weights::SubstrateWeight<Test>;
+	type MaxLocks = ConstU32<50>;
+	type MaxReserves = ();
+	type ReserveIdentifier = [u8; 8];
+	type FreezeIdentifier = ();
+	type MaxFreezes = ConstU32<0>;
+	type RuntimeHoldReason = ();
+	type RuntimeFreezeReason = ();
+}
+
 parameter_types! {
 	pub const MixerPalletId: PalletId = PalletId(*b"py/mixer");
-	pub const MaxPublicInputsLength: u32 = 2000;
+	pub const MaxPublicInputsLength: u32 = 3000;
 	pub const MaxVerificationKeyLength: u32 = 5000;
 	pub const MaxProofLength: u32 = 5000;
+	pub const MixerBalance: Balance = 1_000;
 }
 
 impl pallet_mixer::Config for Test {
@@ -64,11 +83,37 @@ impl pallet_mixer::Config for Test {
 	type MaxProofLength = MaxProofLength;
 	type MaxVerificationKeyLength = MaxVerificationKeyLength;
 	type PalletId = MixerPalletId;
+	type Currency = Balances;
+	type MixerBalance = MixerBalance;
 }
 
-// Build genesis storage according to the mock runtime.
+pub struct ExtBuilder;
+
+impl Default for ExtBuilder {
+	fn default() -> Self {
+		ExtBuilder
+	}
+}
+
+impl ExtBuilder {
+	pub fn build(self) -> sp_io::TestExternalities {
+		let mut storage = frame_system::GenesisConfig::<Test>::default().build_storage().unwrap();
+
+		// This will cause some initial issuance
+		pallet_balances::GenesisConfig::<Test> {
+			balances: vec![(1, 5_000), (2, 5_000), (3, 5_000)],
+		}
+		.assimilate_storage(&mut storage)
+		.ok();
+
+		let mut ext = sp_io::TestExternalities::new(storage);
+		ext.execute_with(|| System::set_block_number(1));
+		ext
+	}
+}
+
 pub fn new_test_ext() -> sp_io::TestExternalities {
-	frame_system::GenesisConfig::<Test>::default().build_storage().unwrap().into()
+	ExtBuilder::default().build()
 }
 
 pub fn zk_events() -> Vec<Event<Test>> {

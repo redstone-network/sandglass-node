@@ -267,7 +267,7 @@ parameter_types! {
 impl pallet_mixer::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = pallet_mixer::weights::SubstrateWeight<Runtime>;
-	type MaxPublicInputsLength = ConstU32<2000>;
+	type MaxPublicInputsLength = ConstU32<3000>;
 	type MaxProofLength = ConstU32<5000>;
 	type MaxVerificationKeyLength = ConstU32<5000>;
 	type PalletId = MixerPalletId;

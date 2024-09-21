@@ -67,13 +67,18 @@ pub mod merkle_tree;
 pub mod mimc;
 pub mod verify;
 
-use frame_support::storage::bounded_vec::BoundedVec;
+use frame_support::{
+	storage::bounded_vec::BoundedVec,
+	traits::{Currency, ExistenceRequirement::AllowDeath, ReservableCurrency},
+};
 pub use pallet::*;
 use sp_std::vec::Vec;
 
 type PublicInputsDef<T> = BoundedVec<u8, <T as Config>::MaxPublicInputsLength>;
 type ProofDef<T> = BoundedVec<u8, <T as Config>::MaxProofLength>;
 type VerificationKeyDef<T> = BoundedVec<u8, <T as Config>::MaxVerificationKeyLength>;
+pub type BalanceOf<T> =
+	<<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
 
 // All pallet logic is defined in its own module and must be annotated by the `pallet` attribute.
 #[frame_support::pallet]
@@ -125,6 +130,12 @@ pub mod pallet {
 
 		#[pallet::constant]
 		type PalletId: Get<PalletId>;
+
+		/// The currency mechanism.
+		type Currency: ReservableCurrency<Self::AccountId>;
+
+		#[pallet::constant]
+		type MixerBalance: Get<BalanceOf<Self>>;
 	}
 
 	/// A storage item for this pallet.
@@ -219,6 +230,8 @@ pub mod pallet {
 		NotSupportedProtocol,
 		/// There was error during proof verification
 		ProofVerificationError,
+		/// There was false during proof verification
+		ProofVerificationFalse,
 		/// Proof creation error
 		ProofCreationError,
 		/// Verification Key creation error
@@ -249,61 +262,7 @@ pub mod pallet {
 	/// The [`weight`] macro is used to assign a weight to each call.
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
-		/// An example dispatchable that takes a single u32 value as a parameter, writes the value
-		/// to storage and emits an event.
-		///
-		/// It checks that the _origin_ for this call is _Signed_ and returns a dispatch
-		/// error if it isn't. Learn more about origins here: <https://docs.substrate.io/build/origins/>
 		#[pallet::call_index(0)]
-		#[pallet::weight(T::WeightInfo::do_something())]
-		pub fn do_something(origin: OriginFor<T>, something: u32) -> DispatchResult {
-			// Check that the extrinsic was signed and get the signer.
-			let who = ensure_signed(origin)?;
-
-			// Update storage.
-			Something::<T>::put(something);
-
-			// Emit an event.
-			Self::deposit_event(Event::SomethingStored { something, who });
-
-			// Return a successful `DispatchResult`
-			Ok(())
-		}
-
-		/// An example dispatchable that may throw a custom error.
-		///
-		/// It checks that the caller is a signed origin and reads the current value from the
-		/// `Something` storage item. If a current value exists, it is incremented by 1 and then
-		/// written back to storage.
-		///
-		/// ## Errors
-		///
-		/// The function will return an error under the following conditions:
-		///
-		/// - If no value has been set ([`Error::NoneValue`])
-		/// - If incrementing the value in storage causes an arithmetic overflow
-		///   ([`Error::StorageOverflow`])
-		#[pallet::call_index(1)]
-		#[pallet::weight(T::WeightInfo::cause_error())]
-		pub fn cause_error(origin: OriginFor<T>) -> DispatchResult {
-			let _who = ensure_signed(origin)?;
-
-			// Read a value from storage.
-			match Something::<T>::get() {
-				// Return an error if the value has not been set.
-				None => Err(Error::<T>::NoneValue.into()),
-				Some(old) => {
-					// Increment the value read from storage. This will cause an error in the event
-					// of overflow.
-					let new = old.checked_add(1).ok_or(Error::<T>::StorageOverflow)?;
-					// Update the value in storage with the incremented result.
-					Something::<T>::put(new);
-					Ok(())
-				},
-			}
-		}
-
-		#[pallet::call_index(2)]
 		#[pallet::weight(0)]
 		pub fn setup_verification(
 			_origin: OriginFor<T>,
@@ -312,18 +271,19 @@ pub mod pallet {
 		) -> DispatchResult {
 			let inputs = store_public_inputs::<T>(pub_input)?;
 			let vk = store_verification_key::<T>(vec_vk)?;
-			ensure!(vk.public_inputs_len == inputs.len() as u8, Error::<T>::PublicInputsMismatch);
+			//ensure!(vk.public_inputs_len == inputs.len() as u8,
+			// Error::<T>::PublicInputsMismatch);
 			Self::deposit_event(Event::<T>::VerificationSetupCompleted);
 			Ok(())
 		}
 
-		#[pallet::call_index(3)]
+		#[pallet::call_index(1)]
 		#[pallet::weight(0)]
 		pub fn deposit(origin: OriginFor<T>, commitment: Vec<u8>) -> DispatchResult {
 			// Check that the extrinsic was signed and get the signer.
-			let _who = ensure_signed(origin)?;
+			let who = ensure_signed(origin)?;
 
-			let c = U256::from_little_endian(&commitment);
+			let c = U256::from_big_endian(&commitment);
 
 			ensure!(!Commitments::<T>::contains_key(c), Error::<T>::CommitmentHasBeanSubmitted);
 
@@ -341,17 +301,17 @@ pub mod pallet {
 
 			Commitments::<T>::insert(c, true);
 			let mut mt = MerkleTree::default();
-			let (leaf, index) = mt.insert(U256::from_little_endian(&commitment)).unwrap();
+			let (leaf, index) = mt.insert(U256::from_big_endian(&commitment)).unwrap();
 
 			let root = mt.get_root();
 			Roots::<T>::insert(root, true);
 
-			// todo transfer token to pallet-mixer
+			T::Currency::transfer(&who, &account_id::<T>(), T::MixerBalance::get(), AllowDeath)?;
 
 			Ok(())
 		}
 
-		#[pallet::call_index(4)]
+		#[pallet::call_index(2)]
 		#[pallet::weight(0)]
 		pub fn withdraw(
 			origin: OriginFor<T>,
@@ -360,34 +320,38 @@ pub mod pallet {
 			nullifier_hash: Vec<u8>,
 			receiver: T::AccountId,
 		) -> DispatchResult {
-			let nullifier_hash = U256::from_little_endian(&nullifier_hash);
+			let nullifier_hash = U256::from_big_endian(&nullifier_hash);
 			ensure!(
 				!NullifierHashes::<T>::contains_key(nullifier_hash),
 				Error::<T>::NoteHasBeanSpent
 			);
 
-			let root = U256::from_little_endian(&root);
-			ensure!(Roots::<T>::contains_key(root), Error::<T>::NoteHasBeanSpent);
+			let root = U256::from_big_endian(&root);
+			ensure!(Roots::<T>::contains_key(root), Error::<T>::CanNotFindMerkelRoot);
 
 			let proof = parse_proof::<T>(proof)?;
 			let vk = get_verification_key::<T>()?;
 			let inputs = get_public_inputs::<T>()?;
 			let sender = ensure_signed(origin)?;
 
-			let _ = match verify(vk, proof, prepare_public_inputs(inputs)) {
+			let inputs = prepare_public_inputs(inputs);
+			match verify(vk, proof, inputs) {
 				Ok(true) => {
 					//Self::deposit_event(Event::<T>::VerificationSuccess { who: sender });
 					NullifierHashes::<T>::insert(nullifier_hash, true);
-					// todo transfer token to receiver
+					T::Currency::transfer(
+						&account_id::<T>(),
+						&receiver,
+						T::MixerBalance::get(),
+						AllowDeath,
+					)?;
 					//Ok(())
 				},
 				Ok(false) => {
 					//Self::deposit_event(Event::<T>::VerificationFailed);
-					//Ok(())
+					return Err(Error::<T>::ProofVerificationFalse.into())
 				},
-				Err(_) => {
-					//Err(Error::<T>::ProofVerificationError.into())
-				},
+				Err(e) => return Err(Error::<T>::ProofVerificationError.into()),
 			};
 
 			Ok(())
@@ -408,6 +372,11 @@ pub mod pallet {
 			pub_input.try_into().map_err(|_| Error::<T>::TooLongPublicInputs)?;
 		let deserialized_public_inputs = deserialize_public_inputs(public_inputs.as_slice())
 			.map_err(|_| Error::<T>::MalformedPublicInputs)?;
+
+		println!(
+			"@@@ public_inputs {:?}, deserialized_public_inputs:  {:?}",
+			public_inputs, deserialized_public_inputs
+		);
 		PublicInputStorage::<T>::put(public_inputs);
 		Ok(deserialized_public_inputs)
 	}

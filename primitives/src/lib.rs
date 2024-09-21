@@ -4,3 +4,5 @@ pub mod currency;
 
 /// Signed version of Balance
 pub type Amount = i128;
+
+pub type Balance = u128;
