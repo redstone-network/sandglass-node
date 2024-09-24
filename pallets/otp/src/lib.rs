@@ -77,8 +77,6 @@ use sp_std::vec::Vec;
 type PublicInputsDef<T> = BoundedVec<u8, <T as Config>::MaxPublicInputsLength>;
 type ProofDef<T> = BoundedVec<u8, <T as Config>::MaxProofLength>;
 type VerificationKeyDef<T> = BoundedVec<u8, <T as Config>::MaxVerificationKeyLength>;
-pub type BalanceOf<T> =
-	<<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
 
 // All pallet logic is defined in its own module and must be annotated by the `pallet` attribute.
 #[frame_support::pallet]
@@ -96,7 +94,7 @@ pub mod pallet {
 	};
 	use frame_support::{pallet_prelude::*, PalletId};
 	use frame_system::pallet_prelude::*;
-	use primitives::Swap;
+	use primitives::Otp;
 	use sp_runtime::traits::AccountIdConversion;
 
 	const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
@@ -128,17 +126,6 @@ pub mod pallet {
 		/// The maximum length of the verification key.
 		#[pallet::constant]
 		type MaxVerificationKeyLength: Get<u32>;
-
-		#[pallet::constant]
-		type PalletId: Get<PalletId>;
-
-		/// The currency mechanism.
-		type Currency: ReservableCurrency<Self::AccountId>;
-
-		#[pallet::constant]
-		type MixerBalance: Get<BalanceOf<Self>>;
-
-		type SwapApi: Swap<BalanceOf<Self>, Self::AccountId>;
 	}
 
 	#[pallet::storage]
@@ -146,8 +133,8 @@ pub mod pallet {
 	pub type Roots<T: Config> = StorageMap<_, Blake2_128Concat, U256, bool>;
 
 	#[pallet::storage]
-	#[pallet::getter(fn nullifier_hashes)]
-	pub type NullifierHashes<T: Config> = StorageMap<_, Blake2_128Concat, U256, bool>;
+	#[pallet::getter(fn user_roots)]
+	pub type UserRoots<T: Config> = StorageMap<_, Blake2_128Concat, T::AccountId, U256>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn commitments)]
@@ -164,10 +151,6 @@ pub mod pallet {
 	/// Storing a verification key.
 	#[pallet::storage]
 	pub type VerificationKeyStorage<T: Config> = StorageValue<_, VerificationKeyDef<T>, ValueQuery>;
-
-	#[pallet::storage]
-	#[pallet::getter(fn blacklist)]
-	pub type BlackList<T: Config> = StorageMap<_, Blake2_128Concat, T::AccountId, bool>;
 
 	/// Events that functions in this pallet can emit.
 	///
@@ -237,12 +220,6 @@ pub mod pallet {
 		NoteHasBeanSpent,
 		/// Can not find merkel root
 		CanNotFindMerkelRoot,
-		/// Invalid withdraw proof
-		InvalidWithdrawProof,
-		/// Blacklist rejected
-		BlacklistRejected,
-		/// Amount must be equ
-		AmountMustBeEqu,
 	}
 
 	/// The pallet's dispatchable functions ([`Call`]s).
@@ -276,11 +253,9 @@ pub mod pallet {
 
 		#[pallet::call_index(1)]
 		#[pallet::weight(0)]
-		pub fn deposit(origin: OriginFor<T>, commitment: Vec<u8>) -> DispatchResult {
+		pub fn set_otp_commitment(origin: OriginFor<T>, commitment: Vec<u8>) -> DispatchResult {
 			// Check that the extrinsic was signed and get the signer.
 			let who = ensure_signed(origin)?;
-
-			ensure!(!BlackList::<T>::contains_key(who.clone()), Error::<T>::BlacklistRejected);
 
 			let c = U256::from_big_endian(&commitment);
 
@@ -305,107 +280,7 @@ pub mod pallet {
 			let root = mt.get_root();
 			Roots::<T>::insert(root, true);
 
-			T::Currency::transfer(&who, &account_id::<T>(), T::MixerBalance::get(), AllowDeath)?;
-
-			Ok(())
-		}
-
-		#[pallet::call_index(2)]
-		#[pallet::weight(0)]
-		pub fn withdraw(
-			origin: OriginFor<T>,
-			proof: Vec<u8>,
-			root: Vec<u8>,
-			nullifier_hash: Vec<u8>,
-			receiver: T::AccountId,
-		) -> DispatchResult {
-			let sender = ensure_signed(origin)?;
-
-			ensure!(!BlackList::<T>::contains_key(sender.clone()), Error::<T>::BlacklistRejected);
-			ensure!(!BlackList::<T>::contains_key(receiver.clone()), Error::<T>::BlacklistRejected);
-
-			let nullifier_hash = U256::from_big_endian(&nullifier_hash);
-			ensure!(
-				!NullifierHashes::<T>::contains_key(nullifier_hash),
-				Error::<T>::NoteHasBeanSpent
-			);
-
-			let root = U256::from_big_endian(&root);
-			ensure!(Roots::<T>::contains_key(root), Error::<T>::CanNotFindMerkelRoot);
-
-			let proof = parse_proof::<T>(proof)?;
-			let vk = get_verification_key::<T>()?;
-			let inputs = get_public_inputs::<T>()?;
-
-			let inputs = prepare_public_inputs(inputs);
-			match verify(vk, proof, inputs) {
-				Ok(true) => {
-					//Self::deposit_event(Event::<T>::VerificationSuccess { who: sender });
-					NullifierHashes::<T>::insert(nullifier_hash, true);
-					T::Currency::transfer(
-						&account_id::<T>(),
-						&receiver,
-						T::MixerBalance::get(),
-						AllowDeath,
-					)?;
-					//Ok(())
-				},
-				Ok(false) => {
-					//Self::deposit_event(Event::<T>::VerificationFailed);
-					return Err(Error::<T>::ProofVerificationFalse.into())
-				},
-				Err(e) => return Err(Error::<T>::ProofVerificationError.into()),
-			};
-
-			Ok(())
-		}
-
-		#[pallet::call_index(3)]
-		#[pallet::weight(0)]
-		pub fn swap(
-			origin: OriginFor<T>,
-			proof: Vec<u8>,
-			root: Vec<u8>,
-			nullifier_hash: Vec<u8>,
-			order_id: u32,
-			receiver: T::AccountId,
-		) -> DispatchResult {
-			let sender = ensure_signed(origin)?;
-
-			ensure!(!BlackList::<T>::contains_key(sender.clone()), Error::<T>::BlacklistRejected);
-			ensure!(!BlackList::<T>::contains_key(receiver.clone()), Error::<T>::BlacklistRejected);
-
-			let nullifier_hash = U256::from_big_endian(&nullifier_hash);
-			ensure!(
-				!NullifierHashes::<T>::contains_key(nullifier_hash),
-				Error::<T>::NoteHasBeanSpent
-			);
-
-			let root = U256::from_big_endian(&root);
-			ensure!(Roots::<T>::contains_key(root), Error::<T>::CanNotFindMerkelRoot);
-
-			let proof = parse_proof::<T>(proof)?;
-			let vk = get_verification_key::<T>()?;
-			let inputs = get_public_inputs::<T>()?;
-
-			let inputs = prepare_public_inputs(inputs);
-			match verify(vk, proof, inputs) {
-				Ok(true) => {
-					//Self::deposit_event(Event::<T>::VerificationSuccess { who: sender });
-					NullifierHashes::<T>::insert(nullifier_hash, true);
-
-					let amount = T::SwapApi::get_target_amount(order_id);
-
-					ensure!(amount == T::MixerBalance::get(), Error::<T>::AmountMustBeEqu);
-
-					T::SwapApi::inter_take_order(account_id::<T>(), order_id, receiver)?;
-				},
-				Ok(false) => {
-					//Self::deposit_event(Event::<T>::VerificationFailed);
-					return Err(Error::<T>::ProofVerificationFalse.into())
-				},
-				Err(e) => return Err(Error::<T>::ProofVerificationError.into()),
-			};
+			UserRoots::<T>::insert(who.clone(), root);
 
 			Ok(())
 		}
@@ -488,7 +363,25 @@ pub mod pallet {
 		Ok(proof)
 	}
 
-	pub fn account_id<T: Config>() -> <T as frame_system::Config>::AccountId {
-		<T as Config>::PalletId::get().into_account_truncating()
+	impl<T: Config> Otp<T::AccountId> for Pallet<T> {
+		//Only checks that time in the proof is larger than lastUsedTime, i.e. behaves like HOTP
+		fn naive_approval(
+			owner: T::AccountId,
+			proof: Vec<u8>,
+			root: Vec<u8>,
+			timestamp: u64,
+		) -> DispatchResult {
+			Ok(())
+		}
+
+		//Uses block timestamp to validate time, TOTP
+		fn block_time_approval(
+			owner: T::AccountId,
+			proof: Vec<u8>,
+			root: Vec<u8>,
+			timestamp: u64,
+		) -> DispatchResult {
+			Ok(())
+		}
 	}
 }

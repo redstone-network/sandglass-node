@@ -4,6 +4,7 @@ members = [
     'primitives',
     'pallets/currencies',
     'pallets/mixer',
+    'pallets/otp',
     'pallets/swap',
     'runtime',
 ]

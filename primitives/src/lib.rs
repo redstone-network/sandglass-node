@@ -13,3 +13,21 @@ pub trait Swap<Balance, AccountId> {
 
 	fn inter_take_order(taker: AccountId, order_id: u32, receiver: AccountId) -> DispatchResult;
 }
+
+pub trait Otp<AccountId> {
+	//Only checks that time in the proof is larger than lastUsedTime, i.e. behaves like HOTP
+	fn naive_approval(
+		owner: AccountId,
+		proof: Vec<u8>,
+		root: Vec<u8>,
+		timestamp: u64,
+	) -> DispatchResult;
+
+	//Uses block timestamp to validate time, TOTP
+	fn block_time_approval(
+		owner: AccountId,
+		proof: Vec<u8>,
+		root: Vec<u8>,
+		timestamp: u64,
+	) -> DispatchResult;
+}
