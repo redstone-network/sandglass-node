@@ -96,8 +96,9 @@ pub mod pallet {
 	};
 	use frame_support::{pallet_prelude::*, PalletId};
 	use frame_system::pallet_prelude::*;
-	use primitives::Swap;
+	use primitives::{Otp, Swap};
 	use sp_runtime::traits::AccountIdConversion;
+	use sp_std::vec;
 
 	const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
 
@@ -139,6 +140,8 @@ pub mod pallet {
 		type MixerBalance: Get<BalanceOf<Self>>;
 
 		type SwapApi: Swap<BalanceOf<Self>, Self::AccountId>;
+
+		type OtpApi: Otp<Self::AccountId>;
 	}
 
 	#[pallet::storage]
@@ -261,12 +264,7 @@ pub mod pallet {
 	impl<T: Config> Pallet<T> {
 		#[pallet::call_index(0)]
 		#[pallet::weight(0)]
-		pub fn setup_verification(
-			_origin: OriginFor<T>,
-			pub_input: Vec<u8>,
-			vec_vk: Vec<u8>,
-		) -> DispatchResult {
-			let inputs = store_public_inputs::<T>(pub_input)?;
+		pub fn setup_verification(_origin: OriginFor<T>, vec_vk: Vec<u8>) -> DispatchResult {
 			let vk = store_verification_key::<T>(vec_vk)?;
 			//ensure!(vk.public_inputs_len == inputs.len() as u8,
 			// Error::<T>::PublicInputsMismatch);
@@ -312,6 +310,94 @@ pub mod pallet {
 
 		#[pallet::call_index(2)]
 		#[pallet::weight(0)]
+		pub fn deposit_with_naive_otp(
+			origin: OriginFor<T>,
+			commitment: Vec<u8>,
+			otp_proof: Vec<u8>,
+			otp_root: Vec<u8>,
+			timestamp: u128,
+		) -> DispatchResult {
+			// Check that the extrinsic was signed and get the signer.
+			let who = ensure_signed(origin)?;
+
+			ensure!(!BlackList::<T>::contains_key(who.clone()), Error::<T>::BlacklistRejected);
+
+			T::OtpApi::naive_approval(who.clone(), otp_proof, otp_root, timestamp)?;
+
+			let c = U256::from_big_endian(&commitment);
+
+			ensure!(!Commitments::<T>::contains_key(c), Error::<T>::CommitmentHasBeanSubmitted);
+
+			MerkleVec::<T>::try_mutate(|merkle_vec| -> DispatchResult {
+				let _ = merkle_vec.try_push(c);
+				Ok(())
+			})?;
+
+			let merkle_vec = MerkleVec::<T>::get();
+			let len = merkle_vec.len();
+
+			for x in &merkle_vec {
+				Commitments::<T>::insert(x, true);
+			}
+
+			Commitments::<T>::insert(c, true);
+			let mut mt = MerkleTree::default();
+			let (leaf, index) = mt.insert(U256::from_big_endian(&commitment)).unwrap();
+
+			let root = mt.get_root();
+			Roots::<T>::insert(root, true);
+
+			T::Currency::transfer(&who, &account_id::<T>(), T::MixerBalance::get(), AllowDeath)?;
+
+			Ok(())
+		}
+
+		#[pallet::call_index(3)]
+		#[pallet::weight(0)]
+		pub fn deposit_with_block_time_otp(
+			origin: OriginFor<T>,
+			commitment: Vec<u8>,
+			otp_proof: Vec<u8>,
+			otp_root: Vec<u8>,
+			timestamp: u128,
+		) -> DispatchResult {
+			// Check that the extrinsic was signed and get the signer.
+			let who = ensure_signed(origin)?;
+
+			ensure!(!BlackList::<T>::contains_key(who.clone()), Error::<T>::BlacklistRejected);
+
+			T::OtpApi::block_time_approval(who.clone(), otp_proof, otp_root, timestamp)?;
+
+			let c = U256::from_big_endian(&commitment);
+
+			ensure!(!Commitments::<T>::contains_key(c), Error::<T>::CommitmentHasBeanSubmitted);
+
+			MerkleVec::<T>::try_mutate(|merkle_vec| -> DispatchResult {
+				let _ = merkle_vec.try_push(c);
+				Ok(())
+			})?;
+
+			let merkle_vec = MerkleVec::<T>::get();
+			let len = merkle_vec.len();
+
+			for x in &merkle_vec {
+				Commitments::<T>::insert(x, true);
+			}
+
+			Commitments::<T>::insert(c, true);
+			let mut mt = MerkleTree::default();
+			let (leaf, index) = mt.insert(U256::from_big_endian(&commitment)).unwrap();
+
+			let root = mt.get_root();
+			Roots::<T>::insert(root, true);
+
+			T::Currency::transfer(&who, &account_id::<T>(), T::MixerBalance::get(), AllowDeath)?;
+
+			Ok(())
+		}
+
+		#[pallet::call_index(4)]
+		#[pallet::weight(0)]
 		pub fn withdraw(
 			origin: OriginFor<T>,
 			proof: Vec<u8>,
@@ -335,10 +421,10 @@ pub mod pallet {
 
 			let proof = parse_proof::<T>(proof)?;
 			let vk = get_verification_key::<T>()?;
-			let inputs = get_public_inputs::<T>()?;
+			let public_inputs = vec![root, nullifier_hash];
+			let public_inputs = prepare_public_inputs(public_inputs);
 
-			let inputs = prepare_public_inputs(inputs);
-			match verify(vk, proof, inputs) {
+			match verify(vk, proof, public_inputs) {
 				Ok(true) => {
 					//Self::deposit_event(Event::<T>::VerificationSuccess { who: sender });
 					NullifierHashes::<T>::insert(nullifier_hash, true);
@@ -360,7 +446,7 @@ pub mod pallet {
 			Ok(())
 		}
 
-		#[pallet::call_index(3)]
+		#[pallet::call_index(5)]
 		#[pallet::weight(0)]
 		pub fn swap(
 			origin: OriginFor<T>,

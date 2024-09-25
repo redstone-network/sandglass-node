@@ -289,6 +289,7 @@ impl pallet_mixer::Config for Runtime {
 	type Currency = Balances;
 	type MixerBalance = MixerBalance;
 	type SwapApi = Swap;
+	type OtpApi = Otp;
 }
 
 parameter_types! {
