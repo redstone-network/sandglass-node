@@ -264,6 +264,15 @@ impl pallet_swap::Config for Runtime {
 	type Currency = Currencies;
 }
 
+impl pallet_otp::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type WeightInfo = ();
+	type MaxPublicInputsLength = ConstU32<3000>;
+	type MaxProofLength = ConstU32<5000>;
+	type MaxVerificationKeyLength = ConstU32<5000>;
+	type TimeProvider = pallet_timestamp::Pallet<Runtime>;
+}
+
 parameter_types! {
 	pub const MixerPalletId: PalletId = PalletId(*b"py/mixer");
 	pub const MixerBalance: Balance = 1_000;
@@ -272,7 +281,7 @@ parameter_types! {
 /// Configure the pallet-mixer in pallets/mixer.
 impl pallet_mixer::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	type WeightInfo = pallet_mixer::weights::SubstrateWeight<Runtime>;
+	type WeightInfo = ();
 	type MaxPublicInputsLength = ConstU32<3000>;
 	type MaxProofLength = ConstU32<5000>;
 	type MaxVerificationKeyLength = ConstU32<5000>;
@@ -365,6 +374,7 @@ construct_runtime!(
 		Assets: pallet_assets,
 		Tokens: orml_tokens,
 		Currencies: pallet_currencies,
+		Otp: pallet_otp,
 		Swap: pallet_swap,
 		// Include the custom logic from the pallet-template in the runtime.
 		Mixer: pallet_mixer,

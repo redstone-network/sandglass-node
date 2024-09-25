@@ -92,10 +92,12 @@ pub mod pallet {
 			VerificationKey, SUPPORTED_CURVE, SUPPORTED_PROTOCOL,
 		},
 	};
-	use frame_support::{pallet_prelude::*, PalletId};
+	use frame_support::{pallet_prelude::*, traits::UnixTime, PalletId};
 	use frame_system::pallet_prelude::*;
 	use primitives::Otp;
+	use sp_io::offchain::timestamp;
 	use sp_runtime::traits::AccountIdConversion;
+	use sp_std::vec;
 
 	const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
 
@@ -126,6 +128,8 @@ pub mod pallet {
 		/// The maximum length of the verification key.
 		#[pallet::constant]
 		type MaxVerificationKeyLength: Get<u32>;
+
+		type TimeProvider: UnixTime;
 	}
 
 	#[pallet::storage]
@@ -137,8 +141,9 @@ pub mod pallet {
 	pub type UserRoots<T: Config> = StorageMap<_, Blake2_128Concat, T::AccountId, U256>;
 
 	#[pallet::storage]
-	#[pallet::getter(fn commitments)]
-	pub type Commitments<T: Config> = StorageMap<_, Blake2_128Concat, U256, bool>;
+	#[pallet::getter(fn user_last_timestamp)]
+	pub type UserLastTimestamp<T: Config> =
+		StorageMap<_, Blake2_128Concat, T::AccountId, u128, ValueQuery>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn merkle_vec)]
@@ -220,6 +225,12 @@ pub mod pallet {
 		NoteHasBeanSpent,
 		/// Can not find merkel root
 		CanNotFindMerkelRoot,
+		/// Not merkel root owner
+		NotMerkelRootOwner,
+		/// timestampe must be larger than last
+		TimestampMustBeLargerThanLast,
+		/// timestampe must be larger than chain
+		TimestampMustBeLargerThanChain,
 	}
 
 	/// The pallet's dispatchable functions ([`Call`]s).
@@ -238,49 +249,25 @@ pub mod pallet {
 	impl<T: Config> Pallet<T> {
 		#[pallet::call_index(0)]
 		#[pallet::weight(0)]
-		pub fn setup_verification(
-			_origin: OriginFor<T>,
-			pub_input: Vec<u8>,
-			vec_vk: Vec<u8>,
-		) -> DispatchResult {
-			let inputs = store_public_inputs::<T>(pub_input)?;
+		pub fn setup_verification(_origin: OriginFor<T>, vec_vk: Vec<u8>) -> DispatchResult {
 			let vk = store_verification_key::<T>(vec_vk)?;
-			//ensure!(vk.public_inputs_len == inputs.len() as u8,
-			// Error::<T>::PublicInputsMismatch);
 			Self::deposit_event(Event::<T>::VerificationSetupCompleted);
 			Ok(())
 		}
 
 		#[pallet::call_index(1)]
 		#[pallet::weight(0)]
-		pub fn set_otp_commitment(origin: OriginFor<T>, commitment: Vec<u8>) -> DispatchResult {
+		pub fn set_otp_commitment(origin: OriginFor<T>, root: Vec<u8>) -> DispatchResult {
 			// Check that the extrinsic was signed and get the signer.
 			let who = ensure_signed(origin)?;
 
-			let c = U256::from_big_endian(&commitment);
+			let r = U256::from_big_endian(&root);
 
-			ensure!(!Commitments::<T>::contains_key(c), Error::<T>::CommitmentHasBeanSubmitted);
+			ensure!(!Roots::<T>::contains_key(r), Error::<T>::CommitmentHasBeanSubmitted);
 
-			MerkleVec::<T>::try_mutate(|merkle_vec| -> DispatchResult {
-				let _ = merkle_vec.try_push(c);
-				Ok(())
-			})?;
+			Roots::<T>::insert(r, true);
 
-			let merkle_vec = MerkleVec::<T>::get();
-			let len = merkle_vec.len();
-
-			for x in &merkle_vec {
-				Commitments::<T>::insert(x, true);
-			}
-
-			Commitments::<T>::insert(c, true);
-			let mut mt = MerkleTree::default();
-			let (leaf, index) = mt.insert(U256::from_big_endian(&commitment)).unwrap();
-
-			let root = mt.get_root();
-			Roots::<T>::insert(root, true);
-
-			UserRoots::<T>::insert(who.clone(), root);
+			UserRoots::<T>::insert(who.clone(), r);
 
 			Ok(())
 		}
@@ -369,8 +356,37 @@ pub mod pallet {
 			owner: T::AccountId,
 			proof: Vec<u8>,
 			root: Vec<u8>,
-			timestamp: u64,
+			timestamp: u128,
 		) -> DispatchResult {
+			let vk = get_verification_key::<T>()?;
+			let proof = parse_proof::<T>(proof)?;
+
+			let root = U256::from_big_endian(&root);
+			ensure!(Roots::<T>::contains_key(root), Error::<T>::CanNotFindMerkelRoot);
+
+			ensure!(
+				UserRoots::<T>::get(owner.clone()) == Some(root),
+				Error::<T>::NotMerkelRootOwner
+			);
+
+			let user_last_timestamp = UserLastTimestamp::<T>::get(owner);
+			ensure!(timestamp > user_last_timestamp, Error::<T>::TimestampMustBeLargerThanLast);
+
+			let timestamp = U256::from(timestamp);
+			let public_inputs = vec![root, timestamp];
+			let public_inputs = prepare_public_inputs(public_inputs);
+
+			match verify(vk, proof, public_inputs) {
+				Ok(true) => {
+					//Ok(())
+				},
+				Ok(false) => {
+					//Self::deposit_event(Event::<T>::VerificationFailed);
+					return Err(Error::<T>::ProofVerificationFalse.into())
+				},
+				Err(e) => return Err(Error::<T>::ProofVerificationError.into()),
+			};
+
 			Ok(())
 		}
 
@@ -379,8 +395,41 @@ pub mod pallet {
 			owner: T::AccountId,
 			proof: Vec<u8>,
 			root: Vec<u8>,
-			timestamp: u64,
+			timestamp: u128,
 		) -> DispatchResult {
+			let vk = get_verification_key::<T>()?;
+			let proof = parse_proof::<T>(proof)?;
+
+			let root = U256::from_big_endian(&root);
+			ensure!(Roots::<T>::contains_key(root), Error::<T>::CanNotFindMerkelRoot);
+
+			ensure!(
+				UserRoots::<T>::get(owner.clone()) == Some(root),
+				Error::<T>::NotMerkelRootOwner
+			);
+
+			let user_last_timestamp = UserLastTimestamp::<T>::get(owner);
+			ensure!(timestamp > user_last_timestamp, Error::<T>::TimestampMustBeLargerThanLast);
+
+			let timestamp_now = T::TimeProvider::now();
+			let block_time = timestamp_now.as_millis();
+			ensure!(timestamp > block_time, Error::<T>::TimestampMustBeLargerThanChain);
+
+			let timestamp = U256::from(timestamp);
+			let public_inputs = vec![root, timestamp];
+			let public_inputs = prepare_public_inputs(public_inputs);
+
+			match verify(vk, proof, public_inputs) {
+				Ok(true) => {
+					//Ok(())
+				},
+				Ok(false) => {
+					//Self::deposit_event(Event::<T>::VerificationFailed);
+					return Err(Error::<T>::ProofVerificationFalse.into())
+				},
+				Err(e) => return Err(Error::<T>::ProofVerificationError.into()),
+			};
+
 			Ok(())
 		}
 	}

@@ -4752,6 +4752,7 @@ dependencies = [
  "pallet-currencies",
  "pallet-grandpa",
  "pallet-mixer",
+ "pallet-otp",
  "pallet-sudo",
  "pallet-swap",
  "pallet-timestamp",

@@ -1,6 +1,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use sp_runtime::DispatchResult;
+use sp_std::vec::Vec;
 pub mod currency;
 
 /// Signed version of Balance
@@ -20,7 +21,7 @@ pub trait Otp<AccountId> {
 		owner: AccountId,
 		proof: Vec<u8>,
 		root: Vec<u8>,
-		timestamp: u64,
+		timestamp: u128,
 	) -> DispatchResult;
 
 	//Uses block timestamp to validate time, TOTP
@@ -28,6 +29,6 @@ pub trait Otp<AccountId> {
 		owner: AccountId,
 		proof: Vec<u8>,
 		root: Vec<u8>,
-		timestamp: u64,
+		timestamp: u128,
 	) -> DispatchResult;
 }

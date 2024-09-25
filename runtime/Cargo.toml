@@ -55,6 +55,7 @@ primitives = { path = "../primitives", default-features = false }
 
 # Local Dependencies
 pallet-currencies = { default-features = false, path = "../pallets/currencies" }
+pallet-otp = { default-features = false, path = "../pallets/otp" }
 pallet-swap = { default-features = false, path = "../pallets/swap" }
 pallet-mixer = { default-features = false, path = "../pallets/mixer" }
 
@@ -81,6 +82,7 @@ std = [
 	"pallet-balances/std",
 	"pallet-currencies/std",
 	"pallet-grandpa/std",
+	"pallet-otp/std",
 	"pallet-sudo/std",
 	"pallet-swap/std",
 	"pallet-mixer/std",
