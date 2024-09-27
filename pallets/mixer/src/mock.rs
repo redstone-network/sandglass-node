@@ -2,16 +2,22 @@ use crate as pallet_mixer;
 use crate::Event;
 use frame_support::{
 	derive_impl, parameter_types,
-	traits::{ConstU128, ConstU16, ConstU32, ConstU64},
+	traits::{AsEnsureOriginWithArg, ConstU128, ConstU16, ConstU32, ConstU64, Nothing},
 	PalletId,
 };
+use orml_traits::{currency::MutationHooks, parameter_type_with_key};
+use pallet_currencies::BasicCurrencyAdapter;
+use primitives::currency::{CurrencyId, TokenSymbol};
 use sp_core::H256;
 use sp_runtime::{
-	traits::{BlakeTwo256, IdentityLookup},
+	traits::{AccountIdConversion, BlakeTwo256, IdentityLookup},
 	BuildStorage,
 };
+use sp_std::marker;
 
 pub type Balance = u128;
+pub type AssetId = u32;
+pub type AccountId = u64;
 type Block = frame_system::mocking::MockBlock<Test>;
 
 // Configure a mock runtime to test the pallet.
@@ -19,7 +25,13 @@ frame_support::construct_runtime!(
 	pub enum Test
 	{
 		System: frame_system,
+		Timestamp: pallet_timestamp,
 		Balances: pallet_balances,
+		Assets: pallet_assets,
+		Currencies: pallet_currencies,
+		Tokens: orml_tokens,
+		Swap: pallet_swap,
+		Otp: pallet_otp,
 		MixerModule: pallet_mixer,
 	}
 );
@@ -68,6 +80,116 @@ impl pallet_balances::Config for Test {
 	type RuntimeFreezeReason = ();
 }
 
+impl pallet_timestamp::Config for Test {
+	/// A timestamp: milliseconds since the unix epoch.
+	type Moment = u64;
+	type OnTimestampSet = ();
+	type MinimumPeriod = ();
+	type WeightInfo = ();
+}
+
+parameter_types! {
+	pub DustAccount: AccountId = PalletId(*b"orml/dst").into_account_truncating();
+}
+
+pub struct CurrencyHooks<T>(marker::PhantomData<T>);
+impl<T: orml_tokens::Config> MutationHooks<T::AccountId, T::CurrencyId, T::Balance>
+	for CurrencyHooks<T>
+where
+	T::AccountId: From<AccountId>,
+{
+	type OnDust = orml_tokens::TransferDust<T, DustAccount>;
+	type OnSlash = ();
+	type PreDeposit = ();
+	type PostDeposit = ();
+	type PreTransfer = ();
+	type PostTransfer = ();
+	type OnNewTokenAccount = ();
+	type OnKilledTokenAccount = ();
+}
+
+pub type ReserveIdentifier = [u8; 8];
+
+parameter_type_with_key! {
+	pub ExistentialDeposits: |_currency_id: CurrencyId| -> Balance {
+		Default::default()
+	};
+}
+
+impl orml_tokens::Config for Test {
+	type RuntimeEvent = RuntimeEvent;
+	type Balance = Balance;
+	type Amount = i64;
+	type CurrencyId = CurrencyId;
+	type WeightInfo = ();
+	type ExistentialDeposits = ExistentialDeposits;
+	type CurrencyHooks = CurrencyHooks<Test>;
+	type MaxLocks = ConstU32<100_000>;
+	type MaxReserves = ConstU32<100_000>;
+	type ReserveIdentifier = ReserveIdentifier;
+	type DustRemovalWhitelist = Nothing;
+}
+
+parameter_types! {
+  pub const AssetDeposit: Balance = 0;
+  pub const AssetAccountDeposit: Balance = 0;
+  pub const ApprovalDeposit: Balance = 0;
+  pub const AssetsStringLimit: u32 = 50;
+  pub const MetadataDepositBase: Balance = 0;
+  pub const MetadataDepositPerByte: Balance = 0;
+}
+
+impl pallet_assets::Config for Test {
+	type RuntimeEvent = RuntimeEvent;
+	type Balance = Balance;
+	type AssetId = AssetId;
+	type Currency = Balances;
+	type ForceOrigin = frame_system::EnsureRoot<AccountId>;
+	type AssetDeposit = AssetDeposit;
+	type AssetAccountDeposit = AssetAccountDeposit;
+	type MetadataDepositBase = MetadataDepositBase;
+	type MetadataDepositPerByte = MetadataDepositPerByte;
+	type ApprovalDeposit = ApprovalDeposit;
+	type StringLimit = AssetsStringLimit;
+	type Freezer = ();
+	type Extra = ();
+	type CreateOrigin = AsEnsureOriginWithArg<frame_system::EnsureSigned<AccountId>>;
+	type WeightInfo = pallet_assets::weights::SubstrateWeight<Test>;
+	type RemoveItemsLimit = ConstU32<0>;
+	type AssetIdParameter = AssetId;
+	type CallbackHandle = ();
+	#[cfg(feature = "runtime-benchmarks")]
+	type BenchmarkHelper = ();
+}
+
+pub type AdaptedBasicCurrency = BasicCurrencyAdapter<Test, Balances, i64, u64>;
+parameter_types! {
+	pub const NativeCurrencyId: CurrencyId = CurrencyId::VToken(TokenSymbol::DOT);
+}
+
+impl pallet_currencies::Config for Test {
+	type MultiCurrency = Tokens;
+	type NativeCurrency = AdaptedBasicCurrency;
+	type LocalAsset = Assets;
+	type GetNativeCurrencyId = NativeCurrencyId;
+	type WeightInfo = ();
+}
+
+impl pallet_swap::Config for Test {
+	type RuntimeEvent = RuntimeEvent;
+	type WeightInfo = ();
+	type Currency = Currencies;
+}
+
+impl pallet_otp::Config for Test {
+	type RuntimeEvent = RuntimeEvent;
+	type WeightInfo = ();
+	type MaxPublicInputsLength = ConstU32<3000>;
+	type MaxProofLength = ConstU32<5000>;
+	type MaxVerificationKeyLength = ConstU32<5000>;
+	type TimeProvider = pallet_timestamp::Pallet<Test>;
+}
+
 parameter_types! {
 	pub const MixerPalletId: PalletId = PalletId(*b"py/mixer");
 	pub const MaxPublicInputsLength: u32 = 3000;
@@ -85,6 +207,8 @@ impl pallet_mixer::Config for Test {
 	type PalletId = MixerPalletId;
 	type Currency = Balances;
 	type MixerBalance = MixerBalance;
+	type SwapApi = Swap;
+	type OtpApi = Otp;
 }
 
 pub struct ExtBuilder;

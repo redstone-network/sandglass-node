@@ -33,3 +33,7 @@ log = "0.4.17"
 parity-scale-codec = { version = "3.0.0", default-features = false, features = ["max-encoded-len"] }
 serde = { version = "1.0", default-features = false, features = ["alloc", "derive"] }
 scale-info = { version = "2.5.0", default-features = false, features = ["derive"] }
+
+orml-traits = { path = "./open-runtime-module-library/traits", default-features = false }
+orml-tokens = { path = "./open-runtime-module-library/tokens", default-features = false }
+orml-utilities = { path = "./open-runtime-module-library/utilities", default-features = false }

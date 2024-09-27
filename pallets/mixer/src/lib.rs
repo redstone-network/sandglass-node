@@ -264,7 +264,9 @@ pub mod pallet {
 	impl<T: Config> Pallet<T> {
 		#[pallet::call_index(0)]
 		#[pallet::weight(0)]
-		pub fn setup_verification(_origin: OriginFor<T>, vec_vk: Vec<u8>) -> DispatchResult {
+		pub fn setup_verification(origin: OriginFor<T>, vec_vk: Vec<u8>) -> DispatchResult {
+			let who = ensure_signed(origin)?;
+
 			let vk = store_verification_key::<T>(vec_vk)?;
 			//ensure!(vk.public_inputs_len == inputs.len() as u8,
 			// Error::<T>::PublicInputsMismatch);
@@ -493,6 +495,17 @@ pub mod pallet {
 				Err(e) => return Err(Error::<T>::ProofVerificationError.into()),
 			};
 
+			Ok(())
+		}
+
+		#[pallet::call_index(6)]
+		#[pallet::weight(0)]
+		pub fn add_black_list(origin: OriginFor<T>, acc: T::AccountId) -> DispatchResult {
+			let who = ensure_signed(origin)?;
+
+			BlackList::<T>::insert(acc, true);
+
+			Self::deposit_event(Event::<T>::VerificationSetupCompleted);
 			Ok(())
 		}
 	}

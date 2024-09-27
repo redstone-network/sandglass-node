@@ -21,9 +21,9 @@ sp-io = { default-features = false, git = "https://github.com/paritytech/polkado
 sp-runtime = { default-features = false, git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-v1.9.0" }
 sp-std = { default-features = false, git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-v1.9.0" }
 
-orml-traits = { path = "../../open-runtime-module-library/traits", default-features = false }
-orml-utilities = { path = "../../open-runtime-module-library/utilities", default-features = false }
-orml-tokens = { path = "../../open-runtime-module-library/tokens", default-features = false }
+orml-traits = { workspace = true }
+orml-tokens = { workspace = true }
+orml-utilities = { workspace = true }
 
 primitives = { path = "../../primitives", default-features = false }
 

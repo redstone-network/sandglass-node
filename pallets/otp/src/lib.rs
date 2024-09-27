@@ -63,8 +63,6 @@ pub use weights::*;
 
 pub mod common;
 pub mod deserialization;
-pub mod merkle_tree;
-pub mod mimc;
 pub mod verify;
 
 use frame_support::{
@@ -86,7 +84,6 @@ pub mod pallet {
 	use crate::{
 		common::prepare_verification_key,
 		deserialization::{deserialize_public_inputs, Proof, VKey},
-		merkle_tree::MerkleTree,
 		verify::{
 			prepare_public_inputs, verify, G1UncompressedBytes, G2UncompressedBytes, GProof,
 			VerificationKey, SUPPORTED_CURVE, SUPPORTED_PROTOCOL,

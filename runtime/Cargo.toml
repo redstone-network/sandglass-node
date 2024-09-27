@@ -60,8 +60,8 @@ pallet-swap = { default-features = false, path = "../pallets/swap" }
 pallet-mixer = { default-features = false, path = "../pallets/mixer" }
 
 # Orml
-orml-traits = { path = "../open-runtime-module-library/traits", default-features = false }
-orml-tokens = { path = "../open-runtime-module-library/tokens", default-features = false }
+orml-traits = { workspace = true }
+orml-tokens = { workspace = true }
 
 [build-dependencies]
 substrate-wasm-builder = { git = "https://github.com/paritytech/polkadot-sdk.git", optional = true, tag = "polkadot-v1.9.0" }
