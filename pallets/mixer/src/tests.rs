@@ -7,7 +7,7 @@ fn test_setup_verification() {
 	new_test_ext().execute_with(|| {
 		let vk = prepare_vk_json("groth16", "bls12381", Some("3701847203724321478317961353917758270528478504282408535117312363800157867784070247396381164448597370877483548917602".to_owned()));
 		assert_ok!(MixerModule::setup_verification(
-			RuntimeOrigin::none(),
+			RuntimeOrigin::signed(1),
 			vk.as_bytes().into()
 		));
 		// let events = zk_events();
@@ -33,7 +33,7 @@ fn test_withdraw() {
 	new_test_ext().execute_with(|| {
         let vk = prepare_vk_json("groth16", "bls12381", Some("3701847203724321478317961353917758270528478504282408535117312363800157867784070247396381164448597370877483548917602".to_owned()));
 		assert_ok!(MixerModule::setup_verification(
-			RuntimeOrigin::none(),
+			RuntimeOrigin::signed(1),
 			vk.as_bytes().into()
 		));
 
@@ -99,7 +99,7 @@ fn test_blacklist() {
 
         let vk = prepare_vk_json("groth16", "bls12381", Some("3701847203724321478317961353917758270528478504282408535117312363800157867784070247396381164448597370877483548917602".to_owned()));
 		assert_ok!(MixerModule::setup_verification(
-			RuntimeOrigin::none(),
+			RuntimeOrigin::signed(1),
 			vk.as_bytes().into()
 		));
 
