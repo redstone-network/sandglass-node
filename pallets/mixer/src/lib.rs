@@ -294,13 +294,11 @@ pub mod pallet {
 			let merkle_vec = MerkleVec::<T>::get();
 			let len = merkle_vec.len();
 
-			for x in &merkle_vec {
-				Commitments::<T>::insert(x, true);
-			}
-
 			Commitments::<T>::insert(c, true);
 			let mut mt = MerkleTree::default();
-			let (leaf, index) = mt.insert(U256::from_big_endian(&commitment)).unwrap();
+			for x in &merkle_vec {
+				let (leaf, index) = mt.insert(*x).unwrap();
+			}
 
 			let root = mt.get_root();
 			Roots::<T>::insert(root, true);
