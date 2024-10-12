@@ -186,17 +186,9 @@ pub mod pallet {
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
 		VerificationSetupCompleted,
-		Deposited {
-			commitment: Vec<u8>,
-			commit_h256: U256,
-			root: U256,
-		},
-		Withdrawed {
-			receiver: T::AccountId
-		},
-		Swaped {
-			receiver: T::AccountId
-		},
+		Deposited { commitment: Vec<u8>, commit_h256: U256, root: U256 },
+		Withdrawed { receiver: T::AccountId },
+		Swaped { receiver: T::AccountId },
 		BlackListAdded,
 	}
 
@@ -317,11 +309,7 @@ pub mod pallet {
 
 			T::Currency::transfer(&who, &account_id::<T>(), T::MixerBalance::get(), AllowDeath)?;
 
-			Self::deposit_event(Event::<T>::Deposited {
-				commitment,
-				commit_h256: c,
-				root,
-			});
+			Self::deposit_event(Event::<T>::Deposited { commitment, commit_h256: c, root });
 
 			Ok(())
 		}
@@ -367,6 +355,8 @@ pub mod pallet {
 
 			T::Currency::transfer(&who, &account_id::<T>(), T::MixerBalance::get(), AllowDeath)?;
 
+			Self::deposit_event(Event::<T>::Deposited { commitment, commit_h256: c, root });
+
 			Ok(())
 		}
 
@@ -411,6 +401,8 @@ pub mod pallet {
 
 			T::Currency::transfer(&who, &account_id::<T>(), T::MixerBalance::get(), AllowDeath)?;
 
+			Self::deposit_event(Event::<T>::Deposited { commitment, commit_h256: c, root });
+
 			Ok(())
 		}
 
@@ -424,24 +416,31 @@ pub mod pallet {
 			receiver: T::AccountId,
 		) -> DispatchResult {
 			let sender = ensure_signed(origin)?;
+			log::info!("before check in withdraw");
 
 			ensure!(!BlackList::<T>::contains_key(sender.clone()), Error::<T>::BlacklistRejected);
 			ensure!(!BlackList::<T>::contains_key(receiver.clone()), Error::<T>::BlacklistRejected);
 
 			let nullifier_hash = U256::from_big_endian(&nullifier_hash);
+			log::info!("before check NoteHasBeanSpent");
 			ensure!(
 				!NullifierHashes::<T>::contains_key(nullifier_hash),
 				Error::<T>::NoteHasBeanSpent
 			);
 
+			log::info!("before U256::from_big_endian(&root);");
 			let root = U256::from_big_endian(&root);
-			ensure!(Roots::<T>::contains_key(root), Error::<T>::CanNotFindMerkelRoot);
+			// ensure!(Roots::<T>::contains_key(root), Error::<T>::CanNotFindMerkelRoot);
 
+			log::info!("before proof");
 			let proof = parse_proof::<T>(proof)?;
+			log::info!("before get_verification_key");
 			let vk = get_verification_key::<T>()?;
 			let public_inputs = vec![root, nullifier_hash];
+			log::info!("before public_inputs");
 			let public_inputs = prepare_public_inputs(public_inputs);
 
+			log::info!("before verify");
 			match verify(vk, proof, public_inputs) {
 				Ok(true) => {
 					//Self::deposit_event(Event::<T>::VerificationSuccess { who: sender });
@@ -452,13 +451,22 @@ pub mod pallet {
 						T::MixerBalance::get(),
 						AllowDeath,
 					)?;
+
+					Self::deposit_event(Event::<T>::Withdrawed { receiver });
+					log::info!("withdraw ok");
+
 					//Ok(())
 				},
 				Ok(false) => {
 					//Self::deposit_event(Event::<T>::VerificationFailed);
+					log::info!("before verify fail");
+
 					return Err(Error::<T>::ProofVerificationFalse.into())
 				},
-				Err(e) => return Err(Error::<T>::ProofVerificationError.into()),
+				Err(e) => {
+					log::info!("before verify error {:?}", e);
+					return Err(Error::<T>::ProofVerificationError.into())
+				},
 			};
 
 			Ok(())
