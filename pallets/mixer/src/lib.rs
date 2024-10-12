@@ -186,6 +186,18 @@ pub mod pallet {
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
 		VerificationSetupCompleted,
+		Deposited {
+			commitment: Vec<u8>,
+			commit_h256: U256,
+			root: U256,
+		},
+		Withdrawed {
+			receiver: T::AccountId
+		},
+		Swaped {
+			receiver: T::AccountId
+		},
+		BlackListAdded,
 	}
 
 	/// Errors that can be returned by this pallet.
@@ -304,6 +316,12 @@ pub mod pallet {
 			Roots::<T>::insert(root, true);
 
 			T::Currency::transfer(&who, &account_id::<T>(), T::MixerBalance::get(), AllowDeath)?;
+
+			Self::deposit_event(Event::<T>::Deposited {
+				commitment,
+				commit_h256: c,
+				root,
+			});
 
 			Ok(())
 		}
@@ -503,7 +521,7 @@ pub mod pallet {
 
 			BlackList::<T>::insert(acc, true);
 
-			Self::deposit_event(Event::<T>::VerificationSetupCompleted);
+			Self::deposit_event(Event::<T>::BlackListAdded);
 			Ok(())
 		}
 	}
