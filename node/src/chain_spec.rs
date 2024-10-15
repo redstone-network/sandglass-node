@@ -113,5 +113,10 @@ fn testnet_genesis(
 			// Assign network admin rights.
 			"key": Some(root_key),
 		},
+		"assets": {
+			"assets": vec![(0, get_account_id_from_seed::<sr25519::Public>("Alice"), true, 1), (1, get_account_id_from_seed::<sr25519::Public>("Alice"), true, 1)],
+			"metadata": vec![(0, "v dot".as_bytes(), "VDOT".as_bytes(), 18), (1, "v btc".as_bytes(), "VBTC".as_bytes(), 18),],
+			"accounts": endowed_accounts.iter().cloned().map(|k| vec![(0, k.clone(), 1u64 << 60), (1, k, 1u64 << 60)]).flatten().collect::<Vec<_>>(),
+		},
 	})
 }
