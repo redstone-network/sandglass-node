@@ -190,6 +190,7 @@ pub mod pallet {
 		Withdrawed { receiver: T::AccountId },
 		Swaped { receiver: T::AccountId },
 		BlackListAdded,
+		PassOtpCheck,
 	}
 
 	/// Errors that can be returned by this pallet.
@@ -329,6 +330,7 @@ pub mod pallet {
 			ensure!(!BlackList::<T>::contains_key(who.clone()), Error::<T>::BlacklistRejected);
 
 			T::OtpApi::naive_approval(who.clone(), otp_proof, otp_root, timestamp)?;
+			Self::deposit_event(Event::<T>::PassOtpCheck);
 
 			let c = U256::from_big_endian(&commitment);
 

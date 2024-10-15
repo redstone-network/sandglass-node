@@ -92,6 +92,7 @@ pub mod pallet {
 	use frame_support::{pallet_prelude::*, traits::UnixTime, PalletId};
 	use frame_system::pallet_prelude::*;
 	use primitives::Otp;
+	use scale_info::prelude::string::String;
 	use sp_io::offchain::timestamp;
 	use sp_runtime::traits::AccountIdConversion;
 	use sp_std::vec;
@@ -258,11 +259,9 @@ pub mod pallet {
 			// Check that the extrinsic was signed and get the signer.
 			let who = ensure_signed(origin)?;
 
-			let r = U256::from_big_endian(&root);
+			let r = U256::from_dec_str(&String::from_utf8(root).unwrap()).unwrap();
 
 			ensure!(!Roots::<T>::contains_key(r), Error::<T>::CommitmentHasBeanSubmitted);
-
-			Roots::<T>::insert(r, true);
 
 			UserRoots::<T>::insert(who.clone(), r);
 
@@ -320,7 +319,10 @@ pub mod pallet {
 	}
 
 	fn parse_proof<T: Config>(vec_proof: Vec<u8>) -> Result<GProof, sp_runtime::DispatchError> {
+		log::info!("before check in parse_proof try_into");
 		let proof: ProofDef<T> = vec_proof.try_into().map_err(|_| Error::<T>::TooLongProof)?;
+
+		log::info!("before check in parse_proof deserialized_proof MalformedProof");
 		let deserialized_proof =
 			Proof::from_json_u8_slice(proof.as_slice()).map_err(|_| Error::<T>::MalformedProof)?;
 		ensure!(
@@ -332,6 +334,7 @@ pub mod pallet {
 			Error::<T>::NotSupportedProtocol
 		);
 
+		log::info!("before check in from_uncompressed");
 		let proof = GProof::from_uncompressed(
 			&G1UncompressedBytes::new(deserialized_proof.a[0], deserialized_proof.a[1]),
 			&G2UncompressedBytes::new(
@@ -355,29 +358,33 @@ pub mod pallet {
 			root: Vec<u8>,
 			timestamp: u128,
 		) -> DispatchResult {
+			log::info!("before check in get_verification_key");
 			let vk = get_verification_key::<T>()?;
+
+			log::info!("before check in parse_proof");
 			let proof = parse_proof::<T>(proof)?;
 
-			let root = U256::from_big_endian(&root);
-			ensure!(Roots::<T>::contains_key(root), Error::<T>::CanNotFindMerkelRoot);
+			log::info!("before U256::from_dec_str(&root);");
+			let root = U256::from_dec_str(&String::from_utf8(root).unwrap()).unwrap();
 
-			ensure!(
-				UserRoots::<T>::get(owner.clone()) == Some(root),
-				Error::<T>::NotMerkelRootOwner
-			);
-
+			log::info!("before UserLastTimestamp::<T>::get(owner);;");
 			let user_last_timestamp = UserLastTimestamp::<T>::get(owner);
+			log::info!("before timestamp > user_last_timestamp");
 			ensure!(timestamp > user_last_timestamp, Error::<T>::TimestampMustBeLargerThanLast);
 
 			let timestamp = U256::from(timestamp);
 			let public_inputs = vec![root, timestamp];
+			log::info!("before public_inputs {:?}", public_inputs);
 			let public_inputs = prepare_public_inputs(public_inputs);
 
+			log::info!("before verify");
 			match verify(vk, proof, public_inputs) {
 				Ok(true) => {
+					log::info!("verify OK");
 					//Ok(())
 				},
 				Ok(false) => {
+					log::info!("verify false");
 					//Self::deposit_event(Event::<T>::VerificationFailed);
 					return Err(Error::<T>::ProofVerificationFalse.into())
 				},
@@ -397,13 +404,7 @@ pub mod pallet {
 			let vk = get_verification_key::<T>()?;
 			let proof = parse_proof::<T>(proof)?;
 
-			let root = U256::from_big_endian(&root);
-			ensure!(Roots::<T>::contains_key(root), Error::<T>::CanNotFindMerkelRoot);
-
-			ensure!(
-				UserRoots::<T>::get(owner.clone()) == Some(root),
-				Error::<T>::NotMerkelRootOwner
-			);
+			let root = U256::from_dec_str(&String::from_utf8(root).unwrap()).unwrap();
 
 			let user_last_timestamp = UserLastTimestamp::<T>::get(owner);
 			ensure!(timestamp > user_last_timestamp, Error::<T>::TimestampMustBeLargerThanLast);
