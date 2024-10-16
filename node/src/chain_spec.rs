@@ -1,4 +1,5 @@
 use node_template_runtime::{AccountId, RuntimeGenesisConfig, Signature, WASM_BINARY};
+use primitives::currency::{CurrencyId, TokenSymbol};
 use sc_service::ChainType;
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_consensus_grandpa::AuthorityId as GrandpaId;
@@ -118,5 +119,8 @@ fn testnet_genesis(
 			"metadata": vec![(0, "v dot".as_bytes(), "VDOT".as_bytes(), 18), (1, "v btc".as_bytes(), "VBTC".as_bytes(), 18),],
 			"accounts": endowed_accounts.iter().cloned().map(|k| vec![(0, k.clone(), 1u64 << 60), (1, k, 1u64 << 60)]).flatten().collect::<Vec<_>>(),
 		},
+		"tokens" : {
+			"balances": endowed_accounts.iter().cloned().map(|k| (k, CurrencyId::VToken(TokenSymbol::BTC), 1u64 << 60)).collect::<Vec<_>>(),
+		}
 	})
 }

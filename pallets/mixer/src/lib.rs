@@ -250,7 +250,7 @@ pub mod pallet {
 		/// Blacklist rejected
 		BlacklistRejected,
 		/// Amount must be equ
-		AmountMustBeEqu,
+		SwapAmountMustBeEqu,
 	}
 
 	/// The pallet's dispatchable functions ([`Call`]s).
@@ -432,7 +432,6 @@ pub mod pallet {
 
 			log::info!("before U256::from_big_endian(&root);");
 			let root = U256::from_big_endian(&root);
-			// ensure!(Roots::<T>::contains_key(root), Error::<T>::CanNotFindMerkelRoot);
 
 			log::info!("before proof");
 			let proof = parse_proof::<T>(proof)?;
@@ -496,21 +495,20 @@ pub mod pallet {
 			);
 
 			let root = U256::from_big_endian(&root);
-			ensure!(Roots::<T>::contains_key(root), Error::<T>::CanNotFindMerkelRoot);
 
 			let proof = parse_proof::<T>(proof)?;
 			let vk = get_verification_key::<T>()?;
-			let inputs = get_public_inputs::<T>()?;
-
-			let inputs = prepare_public_inputs(inputs);
-			match verify(vk, proof, inputs) {
+			let public_inputs = vec![root, nullifier_hash];
+			log::info!("before public_inputs");
+			let public_inputs = prepare_public_inputs(public_inputs);
+			match verify(vk, proof, public_inputs) {
 				Ok(true) => {
 					//Self::deposit_event(Event::<T>::VerificationSuccess { who: sender });
 					NullifierHashes::<T>::insert(nullifier_hash, true);
 
 					let amount = T::SwapApi::get_target_amount(order_id);
 
-					ensure!(amount == T::MixerBalance::get(), Error::<T>::AmountMustBeEqu);
+					ensure!(amount == T::MixerBalance::get(), Error::<T>::SwapAmountMustBeEqu);
 
 					T::SwapApi::inter_take_order(account_id::<T>(), order_id, receiver)?;
 				},

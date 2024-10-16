@@ -164,7 +164,7 @@ impl pallet_assets::Config for Test {
 
 pub type AdaptedBasicCurrency = BasicCurrencyAdapter<Test, Balances, i64, u64>;
 parameter_types! {
-	pub const NativeCurrencyId: CurrencyId = CurrencyId::VToken(TokenSymbol::DOT);
+	pub const NativeCurrencyId: CurrencyId = CurrencyId::Token(TokenSymbol::DOT);
 }
 
 impl pallet_currencies::Config for Test {
@@ -226,6 +226,17 @@ impl ExtBuilder {
 		// This will cause some initial issuance
 		pallet_balances::GenesisConfig::<Test> {
 			balances: vec![(1, 5_000), (2, 5_000), (3, 5_000)],
+		}
+		.assimilate_storage(&mut storage)
+		.ok();
+
+		orml_tokens::GenesisConfig::<Test> {
+			balances: vec![
+				(0, CurrencyId::VToken(TokenSymbol::BTC), 5_000),
+				(1, CurrencyId::VToken(TokenSymbol::BTC), 5_000),
+				(2, CurrencyId::VToken(TokenSymbol::BTC), 5_000),
+				(3, CurrencyId::VToken(TokenSymbol::BTC), 5_000),
+			],
 		}
 		.assimilate_storage(&mut storage)
 		.ok();

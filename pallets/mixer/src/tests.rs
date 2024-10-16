@@ -1,5 +1,7 @@
 use crate::{mock::*, BlackList, Error, Event, *};
 use frame_support::{assert_noop, assert_ok, traits::fungible::Inspect};
+use orml_traits::MultiCurrency;
+use primitives::currency::{CurrencyId, TokenSymbol};
 use sp_core::U256;
 
 #[test]
@@ -10,10 +12,7 @@ fn test_setup_verification() {
 			RuntimeOrigin::signed(1),
 			vk.as_bytes().into()
 		));
-		// let events = zk_events();
 
-		// assert_eq!(events.len(), 1);
-		// assert_eq!(events[0], Event::<Test>::VerificationSetupCompleted);
 	});
 }
 
@@ -103,14 +102,73 @@ fn test_withdraw() {
 
 		assert_noop!(
 			MixerModule::withdraw(
-                RuntimeOrigin::signed(1),
-                proof.as_bytes().into(),
-                root_bytes.to_vec(),
-                nullifier_bytes.to_vec(),
+				RuntimeOrigin::signed(1),
+				proof.as_bytes().into(),
+				root_bytes.to_vec(),
+				nullifier_bytes.to_vec(),
 				2
 			),
 			Error::<Test>::NoteHasBeanSpent
 		);
+	});
+}
+
+#[test]
+fn test_swap() {
+	new_test_ext().execute_with(|| {
+		let vk = prepare_vk_json("groth16", "bls12381", None);
+		assert_ok!(MixerModule::setup_verification(RuntimeOrigin::signed(1), vk.as_bytes().into()));
+
+		let com = U256::from_dec_str(
+			"21230726593955799921294235288119148384132470247301542251439992487769590832624",
+		)
+		.unwrap();
+		let mut com_bytes = [0u8; 32];
+		com.to_big_endian(&mut com_bytes);
+
+		assert_ok!(MixerModule::deposit(RuntimeOrigin::signed(1), com_bytes.to_vec()));
+
+		let root = U256::from_dec_str(
+			"11707923398010884771104902347581583507748139574064506485019337720597328298281",
+		)
+		.unwrap();
+
+		let mut root_bytes = [0u8; 32];
+		root.to_big_endian(&mut root_bytes);
+
+		let proof = prepare_proof_json("groth16", "bls12381", None);
+
+		let nullifier = U256::from_dec_str(
+			"25552435442991663747900835940687199996982543695763714737597223653118621902822",
+		)
+		.unwrap();
+
+		let mut nullifier_bytes = [0u8; 32];
+		nullifier.to_big_endian(&mut nullifier_bytes);
+
+		assert_eq!(Currencies::free_balance(CurrencyId::VToken(TokenSymbol::BTC), &2), 5_000);
+		assert_eq!(Currencies::free_balance(CurrencyId::VToken(TokenSymbol::BTC), &3), 5_000);
+		assert_eq!(Balances::balance(&3), 5000);
+
+		assert_ok!(Swap::submit_order(
+			RuntimeOrigin::signed(3),
+			CurrencyId::VToken(TokenSymbol::BTC),
+			10,
+			CurrencyId::Token(TokenSymbol::DOT),
+			1000
+		));
+
+		assert_ok!(MixerModule::swap(
+			RuntimeOrigin::signed(1),
+			proof.as_bytes().into(),
+			root_bytes.to_vec(),
+			nullifier_bytes.to_vec(),
+			0,
+			2,
+		),);
+
+		assert_eq!(Currencies::free_balance(CurrencyId::VToken(TokenSymbol::BTC), &2), 5_010);
+		assert_eq!(Balances::balance(&3), 6000);
 	});
 }
 
@@ -270,9 +328,16 @@ fn prepare_vk_json(protocol: &str, curve: &str, alpha_x: Option<String>) -> Stri
 // input is
 // {
 // 	"root": "11707923398010884771104902347581583507748139574064506485019337720597328298281",
-// 	"nullifierHash": "25552435442991663747900835940687199996982543695763714737597223653118621902822",
-// 	"secret": "15308241608160268350",
-// 	"paths2_root": ["0", "51576823595707970152643159819788304363803754756066229172775779360774743019614", "33646187916922823865935622258451714952164674255482660942215703235411158105736", "27818645450144846908742692719385898720249207574255739267233226464286012246073", "39404029000907277292464556408734412130261913210564395069696342233560511006152", "24907123534309659921713005795092724527532698077589223246276579583330771465031", "22103361713848256938655449390262013863291224679776344310249539314760174194771", "28665358770471415124367990738618755861132249577405347373337125991381323369983"],
+// 	"nullifierHash":
+// "25552435442991663747900835940687199996982543695763714737597223653118621902822", 	"secret":
+// "15308241608160268350", 	"paths2_root": ["0",
+// "51576823595707970152643159819788304363803754756066229172775779360774743019614",
+// "33646187916922823865935622258451714952164674255482660942215703235411158105736",
+// "27818645450144846908742692719385898720249207574255739267233226464286012246073",
+// "39404029000907277292464556408734412130261913210564395069696342233560511006152",
+// "24907123534309659921713005795092724527532698077589223246276579583330771465031",
+// "22103361713848256938655449390262013863291224679776344310249539314760174194771",
+// "28665358770471415124367990738618755861132249577405347373337125991381323369983"],
 // 	"paths2_root_pos": [0, 0, 0, 0, 0, 0, 0, 0]
 // }
 fn prepare_proof_json(protocol: &str, curve: &str, pi_a_x: Option<String>) -> String {
