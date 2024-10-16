@@ -120,7 +120,7 @@ fn testnet_genesis(
 			"accounts": endowed_accounts.iter().cloned().map(|k| vec![(0, k.clone(), 1u64 << 60), (1, k, 1u64 << 60)]).flatten().collect::<Vec<_>>(),
 		},
 		"tokens" : {
-			"balances": endowed_accounts.iter().cloned().map(|k| (k, CurrencyId::VToken(TokenSymbol::BTC), 1u64 << 60)).collect::<Vec<_>>(),
+			"balances": endowed_accounts.iter().cloned().map(|k| (k, CurrencyId::VToken(TokenSymbol::BTC), 1u64 << 19)).collect::<Vec<_>>(),
 		}
 	})
 }
