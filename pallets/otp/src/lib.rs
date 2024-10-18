@@ -65,10 +65,7 @@ pub mod common;
 pub mod deserialization;
 pub mod verify;
 
-use frame_support::{
-	storage::bounded_vec::BoundedVec,
-	traits::{Currency, ExistenceRequirement::AllowDeath, ReservableCurrency},
-};
+use frame_support::storage::bounded_vec::BoundedVec;
 pub use pallet::*;
 use sp_std::vec::Vec;
 
@@ -83,21 +80,19 @@ pub mod pallet {
 	use super::*;
 	use crate::{
 		common::prepare_verification_key,
-		deserialization::{deserialize_public_inputs, Proof, VKey},
+		deserialization::{Proof, VKey},
 		verify::{
 			prepare_public_inputs, verify, G1UncompressedBytes, G2UncompressedBytes, GProof,
 			VerificationKey, SUPPORTED_CURVE, SUPPORTED_PROTOCOL,
 		},
 	};
-	use frame_support::{pallet_prelude::*, traits::UnixTime, PalletId};
+	use frame_support::{pallet_prelude::*, traits::UnixTime};
 	use frame_system::pallet_prelude::*;
 	use primitives::Otp;
 	use scale_info::prelude::string::String;
-	use sp_io::offchain::timestamp;
-	use sp_runtime::traits::AccountIdConversion;
 	use sp_std::vec;
 
-	const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
+	//const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
 
 	// The `Pallet` struct serves as a placeholder to implement traits, methods and dispatchables
 	// (`Call`s) in this pallet.
@@ -248,7 +243,7 @@ pub mod pallet {
 		#[pallet::call_index(0)]
 		#[pallet::weight(0)]
 		pub fn setup_verification(_origin: OriginFor<T>, vec_vk: Vec<u8>) -> DispatchResult {
-			let vk = store_verification_key::<T>(vec_vk)?;
+			let _vk = store_verification_key::<T>(vec_vk)?;
 			Self::deposit_event(Event::<T>::VerificationSetupCompleted);
 			Ok(())
 		}
@@ -269,25 +264,6 @@ pub mod pallet {
 		}
 	}
 
-	fn get_public_inputs<T: Config>() -> Result<Vec<sp_core::U256>, sp_runtime::DispatchError> {
-		let public_inputs = PublicInputStorage::<T>::get();
-		let deserialized_public_inputs = deserialize_public_inputs(public_inputs.as_slice())
-			.map_err(|_| Error::<T>::MalformedPublicInputs)?;
-		Ok(deserialized_public_inputs)
-	}
-
-	fn store_public_inputs<T: Config>(
-		pub_input: Vec<u8>,
-	) -> Result<Vec<U256>, sp_runtime::DispatchError> {
-		let public_inputs: PublicInputsDef<T> =
-			pub_input.try_into().map_err(|_| Error::<T>::TooLongPublicInputs)?;
-		let deserialized_public_inputs = deserialize_public_inputs(public_inputs.as_slice())
-			.map_err(|_| Error::<T>::MalformedPublicInputs)?;
-
-		PublicInputStorage::<T>::put(public_inputs);
-		Ok(deserialized_public_inputs)
-	}
-
 	fn get_verification_key<T: Config>() -> Result<VerificationKey, sp_runtime::DispatchError> {
 		let vk = VerificationKeyStorage::<T>::get();
 
@@ -303,7 +279,7 @@ pub mod pallet {
 		vec_vk: Vec<u8>,
 	) -> Result<VKey, sp_runtime::DispatchError> {
 		let vk: VerificationKeyDef<T> = vec_vk.try_into().map_err(|e| {
-			//println!("@@@ store_verification_key err: {:?}", e);
+			log::info!("@@@ store_verification_key err: {:?}", e);
 			Error::<T>::TooLongVerificationKey
 		})?;
 		let deserialized_vk = VKey::from_json_u8_slice(vk.as_slice())
@@ -388,7 +364,10 @@ pub mod pallet {
 					//Self::deposit_event(Event::<T>::VerificationFailed);
 					return Err(Error::<T>::ProofVerificationFalse.into())
 				},
-				Err(e) => return Err(Error::<T>::ProofVerificationError.into()),
+				Err(e) => {
+					log::info!("verify error {:?}", e);
+					return Err(Error::<T>::ProofVerificationError.into())
+				},
 			};
 
 			Ok(())
@@ -425,7 +404,11 @@ pub mod pallet {
 					//Self::deposit_event(Event::<T>::VerificationFailed);
 					return Err(Error::<T>::ProofVerificationFalse.into())
 				},
-				Err(e) => return Err(Error::<T>::ProofVerificationError.into()),
+				Err(e) => {
+					log::info!("verify error {:?}", e);
+
+					return Err(Error::<T>::ProofVerificationError.into())
+				},
 			};
 
 			Ok(())

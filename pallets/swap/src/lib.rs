@@ -68,11 +68,11 @@ pub mod pallet {
 	use codec::MaxEncodedLen;
 	use frame_support::{pallet_prelude::*, traits::BalanceStatus};
 	use frame_system::pallet_prelude::*;
-	use orml_traits::{arithmetic::Bounded, MultiCurrency, MultiReservableCurrency};
+	use orml_traits::{MultiCurrency, MultiReservableCurrency};
 	use orml_utilities::with_transaction_result;
 	use primitives::Swap;
 	use scale_info::TypeInfo;
-	use sp_runtime::traits::{AtLeast32BitUnsigned, One, Zero};
+	use sp_runtime::traits::{One, Zero};
 
 	#[derive(Encode, Decode, Clone, RuntimeDebug, Eq, PartialEq, TypeInfo, MaxEncodedLen)]
 	pub struct Order<CurrencyId, Balance, AccountId> {

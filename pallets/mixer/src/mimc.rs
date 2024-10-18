@@ -3,9 +3,8 @@ extern crate ark_ff;
 extern crate ark_std;
 extern crate rand;
 use ark_bn254::Fr;
-use ark_ff::{BigInteger256, Field, PrimeField, UniformRand};
+use ark_ff::Field;
 use ark_std::{str::FromStr, string::ToString, Zero};
-use num_bigint::BigUint;
 use sp_std::vec::Vec;
 
 extern crate num;
@@ -119,6 +118,8 @@ fn test_generate_constants() {
 
 #[test]
 fn test_mimc() {
+	use num_bigint::BigUint;
+
 	let b1: Fr = Fr::from_str("1").unwrap();
 	let b2: Fr = Fr::from_str("2").unwrap();
 	let mimc7 = Mimc7::new(91);

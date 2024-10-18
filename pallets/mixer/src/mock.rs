@@ -251,7 +251,7 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 	ExtBuilder::default().build()
 }
 
-pub fn zk_events() -> Vec<Event<Test>> {
+pub fn _zk_events() -> Vec<Event<Test>> {
 	System::events()
 		.into_iter()
 		.map(|r| r.event)

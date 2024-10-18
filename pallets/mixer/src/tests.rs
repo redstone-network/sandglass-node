@@ -1,4 +1,4 @@
-use crate::{mock::*, BlackList, Error, Event, *};
+use crate::{mock::*, Error, *};
 use frame_support::{assert_noop, assert_ok, traits::fungible::Inspect};
 use orml_traits::MultiCurrency;
 use primitives::currency::{CurrencyId, TokenSymbol};
@@ -196,7 +196,7 @@ fn test_blacklist() {
 	});
 }
 
-fn prepare_correct_public_inputs_json() -> String {
+fn _prepare_correct_public_inputs_json() -> String {
 	r#"[
         "12154017155188732043720388494527814426846884333686418648942396484836291069935",
         "47383248954783409320757252323368067485491150229432134318939482346666131919279"
@@ -204,14 +204,14 @@ fn prepare_correct_public_inputs_json() -> String {
 	.to_owned()
 }
 
-fn prepare_incorrect_public_inputs_json() -> String {
+fn _prepare_incorrect_public_inputs_json() -> String {
 	r#"[
         "3"
 ]"#
 	.to_owned()
 }
 
-fn prepare_empty_public_inputs_json() -> String {
+fn _prepare_empty_public_inputs_json() -> String {
 	r#"[
 ]"#
 	.to_owned()
