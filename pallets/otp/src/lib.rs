@@ -164,6 +164,7 @@ pub mod pallet {
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
 		VerificationSetupCompleted,
+		OtpCommitmentSeted,
 	}
 
 	/// Errors that can be returned by this pallet.
@@ -259,6 +260,8 @@ pub mod pallet {
 			ensure!(!Roots::<T>::contains_key(r), Error::<T>::CommitmentHasBeanSubmitted);
 
 			UserRoots::<T>::insert(who.clone(), r);
+
+			Self::deposit_event(Event::<T>::OtpCommitmentSeted);
 
 			Ok(())
 		}
