@@ -275,7 +275,8 @@ impl pallet_otp::Config for Runtime {
 
 parameter_types! {
 	pub const MixerPalletId: PalletId = PalletId(*b"py/mixer");
-	pub const MixerBalance: Balance = 1_000;
+	pub const UNITS: Balance = 1_000_000_000_000;
+	pub const MixerBalance: Balance = 1_000_000_000_000_000;
 }
 
 /// Configure the pallet-mixer in pallets/mixer.
